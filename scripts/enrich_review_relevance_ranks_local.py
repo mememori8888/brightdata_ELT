@@ -115,8 +115,14 @@ def maps_reviews_url(value: str) -> str:
         return url
 
     path = parsed.path
-    if "!9m1!1b1" not in path:
-        path = path.rstrip("/") + "!9m1!1b1"
+    if "/data=" in path and "!9m1!1b1" not in path:
+        path = path.replace("!4m6!3m5", "!4m8!3m7", 1)
+        if "!16s" in path:
+            path = path.replace("!16s", "!9m1!1b1!16s", 1)
+        else:
+            path = path.rstrip("/") + "!9m1!1b1"
+    elif "!9m1!1b1" not in path:
+        path = path.rstrip("/") + "/data=!9m1!1b1"
 
     query = dict(parse_qsl(parsed.query, keep_blank_values=True))
     query["hl"] = "ja"
