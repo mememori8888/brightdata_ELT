@@ -99,7 +99,7 @@ on:
       PRIVATE_REPO_PAT:
         required: true
       GOOGLE_MAPS_STORAGE_STATE_B64:
-        required: false
+        required: true
       GOOGLE_MAPS_STORAGE_STATE_JSON:
         required: false
 
@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      STATE_FILE: ${{ runner.temp }}/google-maps-storage-state.json
+      STATE_FILE: /tmp/google-maps-storage-state.json
     steps:
       - name: Checkout workflow repository
         uses: actions/checkout@v4
