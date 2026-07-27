@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Enrich review CSV relevance ranks by local Google Maps scraping.
+"""Enrich review CSV relevance ranks using Playwright storage_state.
 
-Desktop-only replacement for scripts/enrich_review_relevance_ranks.py.
-It reuses a logged-in Chromium profile and matches relevance order by レビューGID.
+This variant keeps the same CSV/ranking behavior as enrich_review_relevance_ranks_local.py,
+but stores login/session cookies in a lightweight JSON file instead of using a full
+Chrome user-data profile directory.
 """
 from __future__ import annotations
 
@@ -49,6 +50,8 @@ RELEVANCE_COLUMNS = [
 REVIEW_CARD_SELECTOR = ".jftiEf[data-review-id], [data-review-id]"
 RELEVANCE_SORT = "qualityScore"
 WRITE_REVIEW_EXCLUDE = r"クチコミを書く|口コミを書く|レビューを書く|投稿|Write a review"
+STATE_STORAGE_PATH: Path | None = None
+STATE_SAVE_PATH: Path | None = None
 
 
 def configure_stdio() -> None:
@@ -641,18 +644,24 @@ async def fetch_rank_maps(
     failed: list[dict[str, Any]] = []
     async with async_playwright() as p:
         launch_options = {
-            "user_data_dir": str(profile_dir.resolve()),
             "headless": headless,
             "slow_mo": slow_mo,
+        }
+        context_options: dict[str, Any] = {
             "locale": "ja",
             "extra_http_headers": {"Accept-Language": "ja,en;q=0.7"},
             "viewport": {"width": 1366, "height": 900},
         }
+        if STATE_STORAGE_PATH and STATE_STORAGE_PATH.exists():
+            context_options["storage_state"] = str(STATE_STORAGE_PATH.resolve())
+        elif STATE_STORAGE_PATH:
+            print(f"Storage state file not found; starting with a fresh session: {STATE_STORAGE_PATH}", flush=True)
         try:
-            context = await p.chromium.launch_persistent_context(channel="chrome", **launch_options)
+            browser = await p.chromium.launch(channel="chrome", **launch_options)
         except Exception as chrome_exc:
             print(f"Chrome channel launch failed, fallback to bundled Chromium: {chrome_exc}", flush=True)
-            context = await p.chromium.launch_persistent_context(**launch_options)
+            browser = await p.chromium.launch(**launch_options)
+        context = await browser.new_context(**context_options)
         page = await context.new_page()
         try:
             for index, facility in enumerate(facilities, start=1):
@@ -683,7 +692,12 @@ async def fetch_rank_maps(
                     if stop_on_failure:
                         raise
         finally:
+            if STATE_SAVE_PATH:
+                STATE_SAVE_PATH.parent.mkdir(parents=True, exist_ok=True)
+                await context.storage_state(path=str(STATE_SAVE_PATH.resolve()))
+                print(f"Storage state saved: {STATE_SAVE_PATH}", flush=True)
             await context.close()
+            await browser.close()
     return rank_maps, failed
 
 
@@ -966,6 +980,7 @@ def write_rank_detail(path: str | Path, rank_maps: list[dict[str, Any]], review_
 
 def write_unmatched_reviews(path: str | Path, rank_maps: list[dict[str, Any]], review_file: str | Path) -> None:
     rows = read_rows(review_file)
+    fieldnames = output_fieldnames(read_fieldnames(review_file))
     known_gids = {
         (row.get("レビューGID") or "").strip()
         for row in rows
@@ -975,7 +990,7 @@ def write_unmatched_reviews(path: str | Path, rank_maps: list[dict[str, Any]], r
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDNAMES)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         for result in rank_maps:
             facility = result["facility"]
@@ -1047,7 +1062,7 @@ async def async_main(args: argparse.Namespace) -> None:
     print(f"Skipped missing facilities: {skipped_missing_facilities}")
     print(f"Fallback GID facilities: {fallback_gid_facilities}")
     print(f"Rank limit: {args.rank_limit}, sort: {RELEVANCE_SORT}")
-    print(f"Chromium profile: {args.profile_dir.resolve()}")
+    print(f"Storage state: {args.storage_state.resolve()}")
 
     output_file = args.output_file or args.review_file
     output_rows, output_fieldnames = initialize_output_file(args.review_file, output_file)
@@ -1116,16 +1131,49 @@ async def async_main(args: argparse.Namespace) -> None:
         raise SystemExit(f"ローカル関連度取得に失敗した施設があります: {len(failed)}件")
 
 
+async def login_only(args: argparse.Namespace) -> None:
+    async with async_playwright() as p:
+        launch_options = {
+            "headless": False,
+            "slow_mo": args.slow_mo,
+        }
+        context_options: dict[str, Any] = {
+            "locale": "ja",
+            "extra_http_headers": {"Accept-Language": "ja,en;q=0.7"},
+            "viewport": {"width": 1366, "height": 900},
+        }
+        if args.storage_state.exists():
+            context_options["storage_state"] = str(args.storage_state.resolve())
+        try:
+            browser = await p.chromium.launch(channel="chrome", **launch_options)
+        except Exception as chrome_exc:
+            print(f"Chrome channel launch failed, fallback to bundled Chromium: {chrome_exc}", flush=True)
+            browser = await p.chromium.launch(**launch_options)
+        context = await browser.new_context(**context_options)
+        page = await context.new_page()
+        await page.goto(args.login_url, wait_until="domcontentloaded", timeout=60000)
+        print("ブラウザでGoogleにログインしてください。完了したら、このPowerShellでEnterを押してください。", flush=True)
+        await asyncio.to_thread(input)
+        args.storage_state.parent.mkdir(parents=True, exist_ok=True)
+        await context.storage_state(path=str(args.storage_state.resolve()))
+        print(f"Storage state saved: {args.storage_state}", flush=True)
+        await context.close()
+        await browser.close()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="ローカルGoogle Maps直接スクレイピングで関連度ランクを付与します。")
-    parser.add_argument("--review-file", required=True)
+    parser.add_argument("--review-file", default=None)
     parser.add_argument("--output-file", default=None, help="省略時は --review-file を上書きします")
-    parser.add_argument("--facility-file", required=True)
+    parser.add_argument("--facility-file", default=None)
     parser.add_argument("--recent-review-glob", action="append", default=None, help="省略時は --review-file を対象レビューとして使います")
     parser.add_argument("--summary-file", default="results/relevance_rank_summary_local.csv")
     parser.add_argument("--rank-detail-file", default=None)
     parser.add_argument("--unmatched-review-file", default=None)
-    parser.add_argument("--profile-dir", type=Path, required=True)
+    parser.add_argument("--storage-state", type=Path, required=True, help="Googleログイン状態を保存/読込するJSON")
+    parser.add_argument("--login-only", action="store_true", help="手動ログインしてstorage_stateだけ保存して終了します")
+    parser.add_argument("--login-url", default="https://www.google.com/maps", help="--login-only で開くURL")
+    parser.add_argument("--profile-dir", type=Path, default=Path("."), help="互換性のため残しています。この版では使用しません")
     parser.add_argument("--rank-limit", type=int, default=10)
     parser.add_argument("--start", type=int, default=1, help="テスト/分割用: 対象施設の開始位置（1始まり）")
     parser.add_argument("--limit", type=int, default=None, help="テスト用: 対象施設数を制限")
@@ -1139,8 +1187,18 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    global STATE_SAVE_PATH, STATE_STORAGE_PATH
     configure_stdio()
     args = parse_args()
+    STATE_STORAGE_PATH = args.storage_state
+    STATE_SAVE_PATH = args.storage_state
+    if args.login_only:
+        asyncio.run(login_only(args))
+        return
+    if not args.review_file:
+        raise SystemExit("--review-file を指定してください。")
+    if not args.facility_file:
+        raise SystemExit("--facility-file を指定してください。")
     if args.rank_limit < 1:
         raise SystemExit("--rank-limit は1以上を指定してください。")
     if args.start < 1:

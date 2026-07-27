@@ -35,6 +35,12 @@ FIELDNAMES = [
     "レビューGID",
 ]
 
+RELEVANCE_COLUMNS = [
+    "関連度ランク",
+    "関連度取得ソート",
+    "関連度取得日時",
+]
+
 API_ENDPOINT = "https://api.brightdata.com/request"
 REVIEWS_PER_PAGE = 10
 RELEVANCE_SORT = "qualityScore"
@@ -53,14 +59,34 @@ def read_rows(path):
     raise ValueError(f"CSVを読み込めませんでした: {path}")
 
 
-def write_rows(path, rows):
+def read_fieldnames(path):
+    path = Path(path)
+    for encoding in ("utf-8-sig", "utf-8", "cp932", "shift_jis"):
+        try:
+            with path.open("r", encoding=encoding, newline="") as f:
+                return list(csv.DictReader(f).fieldnames or [])
+        except UnicodeDecodeError:
+            continue
+    raise ValueError(f"CSVヘッダーを読み込めませんでした: {path}")
+
+
+def output_fieldnames(input_fieldnames):
+    fieldnames = list(input_fieldnames)
+    for column in RELEVANCE_COLUMNS:
+        if column not in fieldnames:
+            fieldnames.append(column)
+    return fieldnames
+
+
+def write_rows(path, rows, fieldnames=None):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        output_columns = fieldnames or FIELDNAMES
+        writer = csv.DictWriter(f, fieldnames=output_columns, extrasaction="ignore")
         writer.writeheader()
         for row in rows:
-            writer.writerow({column: (row.get(column) or "").strip() for column in FIELDNAMES})
+            writer.writerow({column: (row.get(column) or "").strip() for column in output_columns})
 
 
 def detect_fid(row):
@@ -256,9 +282,10 @@ def row_matches_facility(row, facility):
 
 
 def enrich_review_file(review_file, facilities, target_facility_keys, rank_maps, fetched_at):
+    fieldnames = output_fieldnames(read_fieldnames(review_file))
     rows = read_rows(review_file)
     for row in rows:
-        for column in FIELDNAMES:
+        for column in RELEVANCE_COLUMNS:
             row.setdefault(column, "")
 
     targeted_gid_or_id = set()
@@ -292,7 +319,7 @@ def enrich_review_file(review_file, facilities, target_facility_keys, rank_maps,
                 matched += 1
                 break
 
-    write_rows(review_file, rows)
+    write_rows(review_file, rows, fieldnames)
     return matched, len(rows)
 
 
@@ -309,7 +336,7 @@ def write_summary(path, rank_maps, recent_review_gids, matched, total_rows, fail
                 "施設FID",
                 "SERP取得件数",
                 "SERPリクエスト数",
-                "期間内レビュー上位10一致数",
+                "対象レビュー上位10一致数",
                 "エラー",
             ],
         )
@@ -324,7 +351,7 @@ def write_summary(path, rank_maps, recent_review_gids, matched, total_rows, fail
                 "施設FID": facility.get("fid", ""),
                 "SERP取得件数": result.get("top_count", 0),
                 "SERPリクエスト数": result.get("request_count", 0),
-                "期間内レビュー上位10一致数": recent_matches,
+                "対象レビュー上位10一致数": recent_matches,
                 "エラー": "",
             })
         for item in failed:
@@ -336,7 +363,7 @@ def write_summary(path, rank_maps, recent_review_gids, matched, total_rows, fail
                 "施設FID": facility.get("fid", ""),
                 "SERP取得件数": 0,
                 "SERPリクエスト数": 0,
-                "期間内レビュー上位10一致数": 0,
+                "対象レビュー上位10一致数": 0,
                 "エラー": item["error"],
             })
     print(f"Summary: {path}")
@@ -347,7 +374,7 @@ def main():
     parser = argparse.ArgumentParser(description="SERP APIで関連度上位レビューを取得し、レビューCSVに関連度ランクを付与します。")
     parser.add_argument("--review-file", required=True)
     parser.add_argument("--facility-file", required=True)
-    parser.add_argument("--recent-review-glob", action="append", required=True)
+    parser.add_argument("--recent-review-glob", action="append", default=None, help="省略時は --review-file 全体を対象にします")
     parser.add_argument("--summary-file", default="results/relevance_rank_summary.csv")
     parser.add_argument("--rank-limit", type=int, default=10)
     parser.add_argument("--max-workers", type=int, default=3)
@@ -363,7 +390,8 @@ def main():
     if args.max_workers < 1:
         raise SystemExit("--max-workers は1以上を指定してください。")
 
-    target_keys, recent_review_gids, recent_files = load_recent_review_facilities(args.recent_review_glob)
+    target_patterns = args.recent_review_glob or [args.review_file]
+    target_keys, recent_review_gids, recent_files = load_recent_review_facilities(target_patterns)
     if not target_keys:
         print("期間内レビューがないため、SERP APIの関連度取得はスキップします。")
         return
@@ -381,8 +409,8 @@ def main():
     if not target_facilities:
         raise SystemExit("期間内レビューのある施設に対応するFIDが見つかりませんでした。")
 
-    print(f"Recent review files: {len(recent_files)}")
-    print(f"Facilities with recent reviews: {len(target_keys)}")
+    print(f"Target review files: {len(recent_files)}")
+    print(f"Facilities in target reviews: {len(target_keys)}")
     print(f"Facilities to query by SERP API: {len(target_facilities)}")
     print(f"Rank limit: {args.rank_limit}, sort: {RELEVANCE_SORT}")
 

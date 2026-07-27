@@ -1,0 +1,268 @@
+name: Enrich relevance ranks with Playwright state
+
+on:
+  workflow_dispatch:
+    inputs:
+      review_file:
+        description: 'Review CSV path in private data repository'
+        required: true
+        default: 'results/dental_reviews.csv'
+      facility_file:
+        description: 'Facility CSV path in private data repository'
+        required: true
+        default: 'results/dental_new.csv'
+      summary_file:
+        description: 'Summary CSV path in private data repository'
+        required: true
+        default: 'results/relevance_rank_summary_state.csv'
+      rank_detail_file:
+        description: 'Rank detail CSV path in private data repository'
+        required: true
+        default: 'results/relevance_rank_detail_state.csv'
+      unmatched_review_file:
+        description: 'Unmatched reviews CSV path in private data repository'
+        required: true
+        default: 'results/relevance_rank_unmatched_reviews_state.csv'
+      rank_limit:
+        description: 'Google Maps relevance rank limit'
+        required: true
+        default: '10'
+      start:
+        description: '1-based target facility start position'
+        required: true
+        default: '1'
+      limit:
+        description: 'Target facility count. 0 means all from start.'
+        required: true
+        default: '10'
+      timeout:
+        description: 'Timeout seconds per facility'
+        required: true
+        default: '120'
+      max_scrolls:
+        description: 'Maximum review-list scroll attempts per facility'
+        required: true
+        default: '14'
+      allow_failures:
+        description: 'Continue when a facility fails'
+        required: true
+        default: true
+        type: boolean
+
+  workflow_call:
+    inputs:
+      review_file:
+        required: false
+        type: string
+        default: 'results/dental_reviews.csv'
+      facility_file:
+        required: false
+        type: string
+        default: 'results/dental_new.csv'
+      summary_file:
+        required: false
+        type: string
+        default: 'results/relevance_rank_summary_state.csv'
+      rank_detail_file:
+        required: false
+        type: string
+        default: 'results/relevance_rank_detail_state.csv'
+      unmatched_review_file:
+        required: false
+        type: string
+        default: 'results/relevance_rank_unmatched_reviews_state.csv'
+      rank_limit:
+        required: false
+        type: string
+        default: '10'
+      start:
+        required: false
+        type: string
+        default: '1'
+      limit:
+        required: false
+        type: string
+        default: '10'
+      timeout:
+        required: false
+        type: string
+        default: '120'
+      max_scrolls:
+        required: false
+        type: string
+        default: '14'
+      allow_failures:
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      PRIVATE_REPO_PAT:
+        required: true
+      GOOGLE_MAPS_STORAGE_STATE_B64:
+        required: false
+      GOOGLE_MAPS_STORAGE_STATE_JSON:
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      STATE_FILE: ${{ runner.temp }}/google-maps-storage-state.json
+    steps:
+      - name: Checkout workflow repository
+        uses: actions/checkout@v4
+
+      - name: Checkout private data repository
+        uses: actions/checkout@v4
+        with:
+          repository: mememori8888/googlemap
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          path: private-data
+          sparse-checkout: |
+            settings
+            results
+
+      - name: Restore Google Maps storage state from secret
+        env:
+          GOOGLE_MAPS_STORAGE_STATE_B64: ${{ secrets.GOOGLE_MAPS_STORAGE_STATE_B64 }}
+          GOOGLE_MAPS_STORAGE_STATE_JSON: ${{ secrets.GOOGLE_MAPS_STORAGE_STATE_JSON }}
+        run: |
+          set -eu
+          if [ -n "${GOOGLE_MAPS_STORAGE_STATE_B64:-}" ]; then
+            printf '%s' "$GOOGLE_MAPS_STORAGE_STATE_B64" | base64 -d > "$STATE_FILE"
+          elif [ -n "${GOOGLE_MAPS_STORAGE_STATE_JSON:-}" ]; then
+            printf '%s' "$GOOGLE_MAPS_STORAGE_STATE_JSON" > "$STATE_FILE"
+          else
+            echo "GOOGLE_MAPS_STORAGE_STATE_B64 or GOOGLE_MAPS_STORAGE_STATE_JSON secret is required." >&2
+            exit 1
+          fi
+          python -m json.tool "$STATE_FILE" >/dev/null
+          chmod 600 "$STATE_FILE"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Enrich relevance ranks
+        env:
+          REVIEW_FILE: private-data/${{ inputs.review_file }}
+          FACILITY_FILE: private-data/${{ inputs.facility_file }}
+          SUMMARY_FILE: private-data/${{ inputs.summary_file }}
+          RANK_DETAIL_FILE: private-data/${{ inputs.rank_detail_file }}
+          UNMATCHED_REVIEW_FILE: private-data/${{ inputs.unmatched_review_file }}
+          RANK_LIMIT: ${{ inputs.rank_limit }}
+          START: ${{ inputs.start }}
+          LIMIT: ${{ inputs.limit }}
+          TIMEOUT: ${{ inputs.timeout }}
+          MAX_SCROLLS: ${{ inputs.max_scrolls }}
+          ALLOW_FAILURES: ${{ inputs.allow_failures }}
+        run: |
+          set -eu
+          args=(
+            --review-file "$REVIEW_FILE"
+            --output-file "$REVIEW_FILE"
+            --facility-file "$FACILITY_FILE"
+            --storage-state "$STATE_FILE"
+            --rank-limit "$RANK_LIMIT"
+            --start "$START"
+            --timeout "$TIMEOUT"
+            --max-scrolls "$MAX_SCROLLS"
+            --summary-file "$SUMMARY_FILE"
+            --rank-detail-file "$RANK_DETAIL_FILE"
+            --unmatched-review-file "$UNMATCHED_REVIEW_FILE"
+            --headless
+          )
+          if [ "$LIMIT" != "0" ]; then
+            args+=(--limit "$LIMIT")
+          fi
+          if [ "$ALLOW_FAILURES" = "true" ]; then
+            args+=(--allow-failures)
+          fi
+          python scripts/enrich_review_relevance_ranks_state.py "${args[@]}"
+
+      - name: Validate output CSV
+        env:
+          REVIEW_FILE: private-data/${{ inputs.review_file }}
+        run: |
+          python - <<'PY'
+          import csv
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ["REVIEW_FILE"])
+          with path.open("r", encoding="utf-8-sig", newline="") as handle:
+              reader = csv.DictReader(handle)
+              fieldnames = reader.fieldnames or []
+              rows = list(reader)
+
+          review_id = "\u30ec\u30d3\u30e5\u30fcID"
+          facility_id = "\u65bd\u8a2dID"
+          facility_gid = "\u65bd\u8a2dGID"
+          relevance_rank = "\u95a2\u9023\u5ea6\u30e9\u30f3\u30af"
+          relevance_sort = "\u95a2\u9023\u5ea6\u53d6\u5f97\u30bd\u30fc\u30c8"
+          relevance_at = "\u95a2\u9023\u5ea6\u53d6\u5f97\u65e5\u6642"
+          review_gid = "\u30ec\u30d3\u30e5\u30fcGID"
+          required = [review_id, facility_id, facility_gid, relevance_rank, relevance_sort, relevance_at, review_gid]
+          missing = [column for column in required if column not in fieldnames]
+          if missing:
+              raise SystemExit(f"Missing required columns: {missing}")
+
+          gids = [(row.get(review_gid) or "").strip() for row in rows if (row.get(review_gid) or "").strip()]
+          print(f"rows={len(rows):,}")
+          print(f"columns={len(fieldnames)}")
+          print(f"review_gid_blank={len(rows) - len(gids):,}")
+          print(f"review_gid_duplicates={len(gids) - len(set(gids)):,}")
+          print(f"relevance_rank_nonempty={sum(1 for row in rows if (row.get(relevance_rank) or '').strip()):,}")
+          if not rows:
+              raise SystemExit("Output review CSV is empty")
+          if len(gids) != len(set(gids)):
+              raise SystemExit("review GID duplicates detected")
+          PY
+
+      - name: Save results to private data repository
+        run: |
+          set -eu
+          cd private-data
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          for file in \
+            "${{ inputs.review_file }}" \
+            "${{ inputs.summary_file }}" \
+            "${{ inputs.rank_detail_file }}" \
+            "${{ inputs.unmatched_review_file }}"
+          do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done
+          git diff --staged --quiet || (git commit -m "Update relevance ranks with Playwright state - $(date +'%Y-%m-%d %H:%M:%S')" && git pull --rebase origin main && git push)
+
+      - name: Upload debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relevance-ranks-playwright-state-${{ github.run_id }}
+          path: |
+            private-data/${{ inputs.summary_file }}
+            private-data/${{ inputs.rank_detail_file }}
+            private-data/${{ inputs.unmatched_review_file }}
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Playwright storage_state relevance ranks" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Review file: \`${{ inputs.review_file }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Facility file: \`${{ inputs.facility_file }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Start: \`${{ inputs.start }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Limit: \`${{ inputs.limit }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Rank limit: \`${{ inputs.rank_limit }}\`" >> "$GITHUB_STEP_SUMMARY"
