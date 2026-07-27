@@ -322,6 +322,24 @@ async def open_first_place_if_search_results(page: Page) -> None:
         await page.wait_for_timeout(2500)
 
 
+async def click_rating_summary(page: Page) -> bool:
+    for locator in (
+        page.locator("[role='img'][aria-label*='つ星']"),
+        page.locator("[role='img'][aria-label*='stars']"),
+        page.locator("[aria-label*='つ星']"),
+        page.locator("[aria-label*='stars']"),
+    ):
+        try:
+            await locator.first.wait_for(state="visible", timeout=1800)
+            await locator.first.scroll_into_view_if_needed(timeout=1800)
+            await locator.first.click(timeout=1800, force=True)
+            await page.wait_for_timeout(1800)
+            return True
+        except Exception:
+            continue
+    return False
+
+
 async def open_reviews(page: Page) -> None:
     await close_write_review_dialog_if_present(page)
     if await page.locator("div[role='feed']").count() > 0:
@@ -350,6 +368,10 @@ async def open_reviews(page: Page) -> None:
     if not opened:
         await page.keyboard.press("Escape")
         opened = await click_text_in_page(page, r"\d+(\.\d+)?\s*(件|reviews?)", WRITE_REVIEW_EXCLUDE)
+        if opened and await close_write_review_dialog_if_present(page):
+            opened = False
+    if not opened:
+        opened = await click_rating_summary(page)
         if opened and await close_write_review_dialog_if_present(page):
             opened = False
 
