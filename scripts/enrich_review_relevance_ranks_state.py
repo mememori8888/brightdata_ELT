@@ -242,17 +242,46 @@ async def close_write_review_dialog_if_present(page: Page) -> bool:
             const dialog = document.querySelector("[role='dialog']");
             if (!dialog) return false;
             const text = dialog.innerText || "";
-            return /この場所での自分の体験|感想を共有|投稿|Write a review|Share details/i.test(text);
+            return /この場所での自分の体験|この場所での|感想を共有|投稿の表示|投稿|Write a review|Share details/i.test(text);
         }
         """
     )
     if not is_open:
         return False
-    await page.keyboard.press("Escape")
-    await page.wait_for_timeout(500)
-    if await page.locator("[role='dialog']").count() > 0:
-        await click_text_in_page(page, r"閉じる|Close")
-        await page.wait_for_timeout(500)
+    for _ in range(3):
+        closed = await page.evaluate(
+            r"""
+            () => {
+                const dialogs = [...document.querySelectorAll("[role='dialog']")];
+                const dialog = dialogs.find((el) => /この場所での自分の体験|この場所での|感想を共有|投稿の表示|投稿|Write a review|Share details/i.test(el.innerText || ""));
+                if (!dialog) return true;
+                const buttons = [...dialog.querySelectorAll("button,[role='button']")];
+                const close = buttons.find((el) => {
+                    const label = [el.innerText || "", el.getAttribute("aria-label") || "", el.getAttribute("title") || ""].join(" ");
+                    return /閉じる|Close/i.test(label);
+                });
+                if (close) {
+                    close.click();
+                    return false;
+                }
+                return false;
+            }
+            """
+        )
+        if closed:
+            return True
+        await page.keyboard.press("Escape")
+        await page.wait_for_timeout(700)
+        still_open = await page.evaluate(
+            r"""
+            () => {
+                const dialog = document.querySelector("[role='dialog']");
+                return !!dialog && /この場所での自分の体験|この場所での|感想を共有|投稿の表示|投稿|Write a review|Share details/i.test(dialog.innerText || "");
+            }
+            """
+        )
+        if not still_open:
+            return True
     return True
 
 
@@ -287,7 +316,6 @@ async def open_reviews(page: Page) -> None:
     for locator in (
         page.get_by_role("tab", name=tab_regex),
         page.locator("[role='tab']").filter(has_text=tab_regex),
-        page.locator("button").filter(has_text=tab_regex),
     ):
         try:
             await locator.first.wait_for(state="visible", timeout=2500)
