@@ -16,7 +16,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote_plus, unquote, urlparse
+from urllib.parse import parse_qsl, quote_plus, unquote, urlencode, urlparse, urlunparse
 
 from playwright.async_api import Browser, BrowserContext, Page, TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
@@ -106,6 +106,22 @@ def maps_url(value: str) -> str:
     if parsed.scheme and parsed.netloc:
         return value
     return f"https://www.google.com/maps/search/?api=1&query={quote_plus(value)}"
+
+
+def maps_reviews_url(value: str) -> str:
+    url = maps_url(value)
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc or "/maps/" not in parsed.path:
+        return url
+
+    path = parsed.path
+    if "!9m1!1b1" not in path:
+        path = path.rstrip("/") + "!9m1!1b1"
+
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query["hl"] = "ja"
+    query["gl"] = "jp"
+    return urlunparse(parsed._replace(path=path, query=urlencode(query)))
 
 
 def detect_fid(row: dict[str, str]) -> str:
@@ -641,6 +657,11 @@ async def fetch_relevance_gids_on_page(
     await page.goto(maps_url(target), wait_until="domcontentloaded", timeout=60000)
     await accept_consent_if_present(page)
     await open_first_place_if_search_results(page)
+    review_url = maps_reviews_url(page.url)
+    if review_url != page.url:
+        await page.goto(review_url, wait_until="domcontentloaded", timeout=60000)
+        await accept_consent_if_present(page)
+        await open_first_place_if_search_results(page)
     await open_reviews(page)
     if force_sort_click:
         await select_relevance_sort(page)
