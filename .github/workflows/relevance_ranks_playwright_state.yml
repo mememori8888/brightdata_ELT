@@ -46,7 +46,7 @@ on:
       allow_failures:
         description: 'Continue when a facility fails'
         required: true
-        default: true
+        default: false
         type: boolean
 
   workflow_call:
@@ -94,7 +94,7 @@ on:
       allow_failures:
         required: false
         type: boolean
-        default: true
+        default: false
     secrets:
       PRIVATE_REPO_PAT:
         required: true
@@ -158,6 +158,7 @@ jobs:
           SUMMARY_FILE: private-data/${{ inputs.summary_file }}
           RANK_DETAIL_FILE: private-data/${{ inputs.rank_detail_file }}
           UNMATCHED_REVIEW_FILE: private-data/${{ inputs.unmatched_review_file }}
+          DEBUG_DIR: private-data/results/debug/relevance_state_${{ github.run_id }}
           RANK_LIMIT: ${{ inputs.rank_limit }}
           START: ${{ inputs.start }}
           LIMIT: ${{ inputs.limit }}
@@ -178,6 +179,7 @@ jobs:
             --summary-file "$SUMMARY_FILE"
             --rank-detail-file "$RANK_DETAIL_FILE"
             --unmatched-review-file "$UNMATCHED_REVIEW_FILE"
+            --debug-dir "$DEBUG_DIR"
             --headless
           )
           if [ "$LIMIT" != "0" ]; then
@@ -254,6 +256,7 @@ jobs:
             private-data/${{ inputs.summary_file }}
             private-data/${{ inputs.rank_detail_file }}
             private-data/${{ inputs.unmatched_review_file }}
+            private-data/results/debug/relevance_state_${{ github.run_id }}/**
           if-no-files-found: warn
           retention-days: 7
 

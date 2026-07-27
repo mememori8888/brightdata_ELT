@@ -639,6 +639,7 @@ async def fetch_rank_maps(
     on_result: Any | None = None,
     on_failure: Any | None = None,
     stop_on_failure: bool = False,
+    debug_dir: Path | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     rank_maps: list[dict[str, Any]] = []
     failed: list[dict[str, Any]] = []
@@ -684,6 +685,21 @@ async def fetch_rank_maps(
                         on_result(rank_maps[-1])
                     print(f"  -> top={len(gids)}", flush=True)
                 except Exception as exc:
+                    if debug_dir:
+                        debug_dir.mkdir(parents=True, exist_ok=True)
+                        safe_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", facility.get("facility_id") or str(index))
+                        try:
+                            await page.screenshot(path=str(debug_dir / f"failure_{index:04d}_{safe_id}.png"), full_page=True)
+                        except Exception:
+                            pass
+                        try:
+                            (debug_dir / f"failure_{index:04d}_{safe_id}.html").write_text(await page.content(), encoding="utf-8")
+                        except Exception:
+                            pass
+                        try:
+                            (debug_dir / f"failure_{index:04d}_{safe_id}.url.txt").write_text(page.url, encoding="utf-8")
+                        except Exception:
+                            pass
                     failed_item = {"facility": facility, "error": str(exc)}
                     failed.append(failed_item)
                     if on_failure:
@@ -1114,6 +1130,7 @@ async def async_main(args: argparse.Namespace) -> None:
         on_result=persist_result,
         on_failure=persist_failure,
         stop_on_failure=not args.allow_failures,
+        debug_dir=args.debug_dir,
     )
 
     matched = matched_so_far
@@ -1183,6 +1200,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--force-sort-click", action="store_true", help="必要な場合だけ並べ替えメニューから関連性の高い順を明示クリックします")
     parser.add_argument("--allow-failures", action="store_true")
+    parser.add_argument("--debug-dir", type=Path, default=None, help="失敗時のスクリーンショット/HTML保存先")
     return parser.parse_args()
 
 
