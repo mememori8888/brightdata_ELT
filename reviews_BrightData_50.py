@@ -47,10 +47,25 @@ API_TOKEN = os.getenv('BRIGHTDATA_API_TOKEN')
 TIMEOUT = 120  # 2分
 MAX_WORKERS = int(os.getenv('MAX_WORKERS', '10'))  # 並列処理数（環境変数から取得可能）
 BATCH_SIZE = 50  # バッチサイズ
-REVIEW_SORT = os.getenv('REVIEW_SORT', 'qualityScore')  # qualityScore=関連度順
+REVIEW_SORT = os.getenv('REVIEW_SORT', 'qualityScore')  # qualityScore=関連度順（Dataset既定値）。新着順を明示的に指定しても拒否される場合がある。
 REVIEW_FIELDNAMES = ['レビューID', '施設ID', '施設GID', 'レビュワー評価', 'レビュワー名',
                      'レビュー日時', 'レビュー本文', 'オーナー返信', 'レビュー表示順位',
                      'レビュー取得ソート', 'レビュー要約', 'レビューGID']
+
+
+def format_review_sort_label(sort_value: str) -> str:
+    """CSV出力用のラベル。Dataset ID 由来の取得は新着順として扱う。"""
+    if sort_value is None:
+        return '新着順（Dataset ID）'
+    normalized = str(sort_value).strip()
+    if not normalized:
+        return '新着順（Dataset ID）'
+    lowered = normalized.lower()
+    if lowered == 'qualityscore':
+        return '新着順（Dataset ID）'
+    if lowered == 'newestfirst':
+        return '新着順'
+    return normalized
 
 # Gemini API設定
 # === 🚀 パフォーマンス最適化のため、Gemini機能を一時的に無効化 ===

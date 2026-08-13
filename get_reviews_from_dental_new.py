@@ -65,6 +65,21 @@ REVIEW_FIELDNAMES = ['レビューID', '施設ID', '施設GID', 'レビュワー
                      'レビュー要約', 'レビューGID']
 
 
+def format_review_sort_label(sort_value: str) -> str:
+    """CSV出力用のラベル。Dataset ID 由来の取得は新着順として扱う。"""
+    if sort_value is None:
+        return '新着順（Dataset ID）'
+    normalized = str(sort_value).strip()
+    if not normalized:
+        return '新着順（Dataset ID）'
+    lowered = normalized.lower()
+    if lowered == 'qualityscore':
+        return '新着順（Dataset ID）'
+    if lowered == 'newestfirst':
+        return '新着順'
+    return normalized
+
+
 def safe_read_csv(filepath):
     """
     フールプルーフ設計：複数のエンコーディングを自動で試し、
@@ -848,7 +863,7 @@ def save_reviews_to_csv(csv_file_path: Path, reviews: List[Dict]):
                     'レビュー本文': str(review.get('text', '')).strip(),
                     'オーナー返信': str(review.get('response_of_owner', '')).strip(),
                     'レビュー表示順位': str(review.get('review_display_order', '')).strip(),
-                    'レビュー取得ソート': str(review.get('review_sort', '')).strip(),
+                    'レビュー取得ソート': format_review_sort_label(review.get('review_sort', '')),
                     '関連度ランク': str(review.get('relevance_rank', '')).strip(),
                     '関連度取得ソート': str(review.get('relevance_sort', '')).strip(),
                     '関連度取得日時': str(review.get('relevance_fetched_at', '')).strip(),
@@ -867,7 +882,7 @@ def save_reviews_to_csv(csv_file_path: Path, reviews: List[Dict]):
                     'レビュー本文': str(review.get('レビュー本文', '')).strip(),
                     'オーナー返信': str(review.get('オーナー返信', '')).strip(),
                     'レビュー表示順位': str(review.get('レビュー表示順位', '')).strip(),
-                    'レビュー取得ソート': str(review.get('レビュー取得ソート', '')).strip(),
+                    'レビュー取得ソート': format_review_sort_label(review.get('レビュー取得ソート', '')),
                     '関連度ランク': str(review.get('関連度ランク', '')).strip(),
                     '関連度取得ソート': str(review.get('関連度取得ソート', '')).strip(),
                     '関連度取得日時': str(review.get('関連度取得日時', '')).strip(),
@@ -893,7 +908,7 @@ def save_recent_reviews_to_csv(csv_file_path: Path, reviews: List[Dict]):
                 'レビュー本文': str(review.get('text', '')).strip(),
                 'オーナー返信': str(review.get('response_of_owner', '')).strip(),
                 'レビュー表示順位': str(review.get('review_display_order', '')).strip(),
-                'レビュー取得ソート': str(review.get('review_sort', '')).strip(),
+                'レビュー取得ソート': format_review_sort_label(review.get('review_sort', '')),
                 '関連度ランク': '',
                 '関連度取得ソート': '',
                 '関連度取得日時': '',

@@ -11,6 +11,10 @@ on:
   issue_comment:
     types: [created]
 
+env:
+  # Issue作成時に承認を省略できる固定許可リスト。
+  AUTO_RUN_USERS: 'jmh8128494-cloud,asahi26366'
+
 jobs:
   parse-and-route:
     runs-on: ubuntu-latest
@@ -39,22 +43,32 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           COMMENT_USER: ${{ github.event.comment.user.login }}
           COMMENT_AUTHOR_ASSOC: ${{ github.event.comment.author_association }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_AUTHOR_ASSOC: ${{ github.event.issue.author_association }}
+          AUTO_RUN_USERS: ${{ env.AUTO_RUN_USERS }}
         run: |
           if [[ "$EVENT_NAME" == "issues" ]]; then
-            echo "should_run=preview" >> $GITHUB_OUTPUT
-            echo "✅ Issue created - preview mode"
+            if [[ "$ISSUE_AUTHOR_ASSOC" == "OWNER" ]] ||
+               [[ ",$AUTO_RUN_USERS," == *",$ISSUE_AUTHOR,"* ]]; then
+              echo "should_run=true" >> $GITHUB_OUTPUT
+              echo "✅ Issue created by authorized user: $ISSUE_AUTHOR ($ISSUE_AUTHOR_ASSOC) - approval is not required"
+            else
+              echo "should_run=preview" >> $GITHUB_OUTPUT
+              echo "✅ Issue created - preview mode"
+            fi
             exit 0
           fi
           
           if [[ "$EVENT_NAME" == "issue_comment" ]]; then
             if [[ "$COMMENT_BODY" == *"/承認"* ]]; then
-              AUTHOR="$COMMENT_USER"
-              if [[ "$AUTHOR" == "mememori8888" ]] || [[ "$COMMENT_AUTHOR_ASSOC" == "OWNER" ]]; then
+                if [[ "$COMMENT_AUTHOR_ASSOC" == "OWNER" ]] ||
+                  [[ "$COMMENT_USER" == "jmh8128494-cloud" ]] ||
+                  [[ "$COMMENT_USER" == "asahi26366" ]]; then
                 echo "should_run=true" >> $GITHUB_OUTPUT
-                echo "✅ Approved by: $AUTHOR"
+                echo "✅ Approved by: $COMMENT_USER ($COMMENT_AUTHOR_ASSOC)"
               else
                 echo "should_run=false" >> $GITHUB_OUTPUT
-                echo "❌ Unauthorized user: $AUTHOR"
+                echo "❌ Unauthorized user: $COMMENT_USER ($COMMENT_AUTHOR_ASSOC)"
               fi
             else
               echo "should_run=false" >> $GITHUB_OUTPUT
@@ -76,7 +90,7 @@ jobs:
               `- 実行ユーザー: ${actor}`,
               `- 権限: ${association}`,
               '',
-              '管理者（OWNER）が `/承認` をコメントすると実行できます。'
+              'オーナーまたは許可リストのユーザーが `/承認` をコメントすると実行できます。'
             ].join('\n');
 
             github.rest.issues.createComment({
