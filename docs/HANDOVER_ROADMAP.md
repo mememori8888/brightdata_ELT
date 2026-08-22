@@ -6,12 +6,12 @@
 
 受領者が、開発者の環境や認証情報に依存せず、システムの設定・実行・結果確認・障害対応・軽微な修正を自分で行える状態にする。
 
-対象となる処理経路:
+移行後の対象となる処理経路:
 
 ```text
 Webapp → GitHub Issue → GitHub Actions → Bright Data API
                                       ↓
-                              googlemap/results/
+                              results/
                                       ↓
                               Issueへ完了通知
 ```
@@ -22,7 +22,7 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 |---|---|---|
 | Pythonコード・GitHub Actions | リポジトリに存在 | 要実行確認 |
 | WebappからIssueを作成 | 実装あり | 要受入テスト |
-| `googlemap`とのデータ分離 | 実装・資料あり | 権限移管が必要 |
+| コード・設定・データの分離 | `demo`と`googlemap`に分散 | 1つの非公開リポジトリへ統合 |
 | Bright Data接続 | 過去に成功記録あり | 受領者アカウントで再確認 |
 | 最新のレビュー処理 | 2026-08-11に一部チャンク失敗 | 原因確認または既知問題として合意 |
 | 依存スクリプト | 未配置の記録あり | 本番対象を確定し、修正または除外 |
@@ -49,6 +49,48 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 - 受領者アカウントによるWebappからのIssue作成
 
 上記は、GitHub権限、受領者のSecrets、Bright Dataアカウント、テスト用データが必要であり、ローカルのコード検証だけでは完了扱いにしない。
+
+## 移行方針
+
+引き渡し先は、コード・GitHub Actions・Webapp・設定・入力データ・結果データをまとめた1つのプライベートリポジトリとする。現在の`demo`と`googlemap`をそのまま運用させるのではなく、統合後のリポジトリを受領者の管理下に置く。
+
+### 統合後の構成
+
+```text
+handover-repository/
+├── .github/workflows/
+├── .github/scripts/
+├── docs/webapp/
+├── settings/
+├── results/
+├── scripts/
+├── *.py
+├── requirements.txt
+└── README.md
+```
+
+### 統合で削除・簡略化する処理
+
+- `googlemap`へのcheckout
+- `private-data/`へのコピー
+- `private-data/`からの結果書き戻し
+- `PRIVATE_REPO_PAT`
+- 2リポジトリ間の同期処理
+- `PRIVATE_DATA_ROOT`の自動検出
+
+### 統合時に手作業で必要な項目
+
+- 新しいプライベートリポジトリの作成
+- `googlemap/settings/`と`googlemap/results/`の内容確認・移行
+- GitHub IssuesとActionsの有効化
+- GitHub Actionsの権限設定
+- `BRIGHTDATA_API_TOKEN`と`BRIGHTDATA_ZONE_NAME`の登録
+- 必要な場合の`GEMINI_API_KEY`登録
+- 受領者への管理者権限付与
+- Webappの公開方法決定
+- APIキーや個人情報がGit履歴・Issue・ログに残っていないかの確認
+
+この手作業は、現在のワークスペースから完了させることはできない。GitHub管理画面、`googlemap`の実データ、受領者アカウントが必要である。
 
 ## Phase 0: 契約・対象範囲の確定
 
