@@ -29,6 +29,27 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 | 新仕様Web Scraper API | ラッパーと実行ファイルあり | 非対話実行を検証 |
 | 運用手順・障害対応 | 資料が分散 | 本書と手順書に集約 |
 
+## 2026-08-22時点の進捗
+
+### 完了
+
+- 引き渡し作業を`handover-roadmap`ブランチへ分離した
+- `reviews_brightData_new_version.py`の重複実装を整理した
+- レビュー・施設ラッパーについて、データルートが見つからない場合にコードリポジトリへ書き込まず、エラー終了するよう変更した
+- 無効な`PRIVATE_DATA_ROOT`で両ラッパーが終了コード1になることを確認した
+- 対象ラッパーと`run_reviews_local_interactive.py`のPython構文を確認した
+- 現行Actionsでは、施設処理は施設ラッパー、レビュー処理は`run_reviews_local_interactive.py`直接呼び出しであることを確認した
+
+### この環境では未実施
+
+- GitHub Secretsの存在・値の検証
+- `googlemap`への読み書き権限の検証
+- Bright Data APIへの接続と課金が発生する実データ処理
+- GitHub Actionsの実行、再実行、結果コミットの確認
+- 受領者アカウントによるWebappからのIssue作成
+
+上記は、GitHub権限、受領者のSecrets、Bright Dataアカウント、テスト用データが必要であり、ローカルのコード検証だけでは完了扱いにしない。
+
 ## Phase 0: 契約・対象範囲の確定
 
 ### 作業
