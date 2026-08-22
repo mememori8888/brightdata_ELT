@@ -92,6 +92,38 @@ handover-repository/
 
 この手作業は、現在のワークスペースから完了させることはできない。GitHub管理画面、`googlemap`の実データ、受領者アカウントが必要である。
 
+## 第2項目: 統合対象の棚卸し
+
+### このリポジトリから移行するもの
+
+- `.github/workflows/`: GitHub Actions定義
+- `.github/scripts/`: Actionsから呼び出す設定更新処理
+- `docs/webapp/`: Issue作成用Webapp
+- `scripts/`: API診断、レビュー統合、関連度処理
+- Pythonエントリーポイント一式
+- `requirements.txt`
+- README、運用資料、変更履歴
+- `n8n/`: n8nを本番対象とする場合のみ移行
+
+### `googlemap`から手作業で移行するもの
+
+- `settings/`内の設定JSON
+- `results/`内の入力CSV
+- 過去の結果CSVと必要な増分データ
+- バックアップ対象と保持期間
+
+### 移行前に確認するもの
+
+- `settings/`と`results/`に個人情報・不要な秘密情報がないか
+- Git履歴、Issue、ActionsログにAPIキーが残っていないか
+- 入力CSVのファイル名と、Actionsのデフォルト値が一致しているか
+- `n8n/`を現行運用するか
+- 旧スクリプトと新仕様スクリプトのどちらを本番入口にするか
+
+### 現時点の判定
+
+このワークスペースでは、コード側の移行対象は確認できた。`googlemap`の実データ、履歴、個人情報の有無は確認できないため、データ移行と秘密情報監査は手作業項目として残す。
+
 ## Phase 0: 契約・対象範囲の確定
 
 ### 作業
