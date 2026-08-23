@@ -29,6 +29,18 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 | 新仕様Web Scraper API | ラッパーと実行ファイルあり | 非対話実行を検証 |
 | 運用手順・障害対応 | 資料が分散 | 本書と手順書に集約 |
 
+## 方針変更（2026-08-23）: brightdata_ELTをPublicリポジトリにする
+
+- 理由: GitHub Actionsのホスト型ランナーは、Publicリポジトリでは実行時間制限が実質なくなるため
+- `settings/`・`results/`（実データ）は`brightdata_ELT`には含まれておらず、`googlemap`（Private維持）側にのみ存在することを確認済み(`git ls-tree`で0件確認)
+- コード・ワークフロー・資料内に、ハードコードされたAPIキー・PAT・個人情報がないかを検索した
+  - 電話番号らしき数字列: 6件、すべてコード内コメントの書式例（実データではない）
+  - メールアドレス: 該当なし
+  - APIキー・トークンの直書き: 該当なし（すべて`secrets.XXX`経由）
+  - Bright Data Dataset ID(`gd_luzfs1dn2oa0teb81`)がWebapp・資料に複数存在するが、単体では認証情報として機能しないため公開して問題ない
+- 上記確認により、`brightdata_ELT`のPublic化によって新たに漏えいする機微情報は見つからなかった
+- `googlemap`は引き続きPrivateのまま移行する
+
 ## 2026-08-22時点の進捗
 
 ### 完了
