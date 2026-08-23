@@ -77,7 +77,7 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 - [x] `settings/`・`results/`の内容を最新版でバックアップする — 完了(2026-08-23、`googlemap`ミラーから`git archive`で展開、`/workspaces/backups/googlemap_worktree/`、settings 7.6M・results 195M)
 - [x] `brightdata_ELT`へコード・Actions・Webappの統合を完了させる — 完了(2026-08-23、`handover-roadmap`ブランチの内容をそのまま`brightdata_ELT`の`main`へforce push。コミット`fb720e0`まで反映。`private-data`/`googlemap`連携ロジックは変更せず維持。push時にPATへ`Workflows: Read and write`権限の追加が必要だった)
 - [x] ~~`demo`の各ワークフローが`googlemap`ではなく`brightdata_ELT`単体で完結するよう修正する（別リポジトリ依存を解消）~~ → **対象外(2026-08-23、ユーザー指示)**: `private-data`経由の`googlemap`連携ロジックは、他コードへの影響が読み切れないため変更しない。二重リポジトリ構成はそのまま維持する
-- [ ] 移行後に新オーナー側で再発行が必要なSecretsを一覧化する（`BRIGHTDATA_API_TOKEN`、`BRIGHTDATA_ZONE_NAME`、`PRIVATE_REPO_PAT`、必要なら`GEMINI_API_KEY`）
+- [x] 移行後に新オーナー側で再発行が必要なSecretsを一覧化する — 完了(2026-08-23、`.github/workflows/`全体を実際に検索し、参照されている全Secrets名を確定。下表を参照)
 - [ ] 旧オーナー（開発者）側のPAT・APIキーを、移行後に失効させる手順を明記する
 - [ ] 上記すべて完了後にのみ、ユーザーが手作業で「Transfer ownership」を実行する
 
@@ -92,6 +92,20 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 - 直後、`gh auth login`のトークン検証時に`API rate limit exceeded for user ID 42532462`が3回連続発生。REST API(`/user`)側の二次的なレート制限とみられ、`gh auth login`の再試行は行わない方針に切り替えた
 - 代替として、`git ls-remote`にトークンをURL埋め込みで渡す方式（Git Smart HTTPプロトコル、REST APIとは別の窓口）で`googlemap`への到達性を確認し、成功した（ブランチ・PR参照が取得できた）
 - `gh`コマンドでの操作は当面レート制限の影響を受ける可能性があるため、バックアップ等はまず`git`直接操作で進める
+
+### 移行後にbrightdata_ELT側で再登録が必要なSecrets（確定・2026-08-23）
+
+`.github/workflows/`全ファイルを実検索して確定した一覧。値は旧オーナーのものを引き継がず、新オーナー自身のアカウント・契約で再発行する。
+
+| Secret名 | 用途 | 備考 |
+|---|---|---|
+| `BRIGHTDATA_API_TOKEN` | Bright Data API認証 | 新オーナーのBright Dataアカウントで再発行 |
+| `BRIGHTDATA_ZONE_NAME` | SERP APIのゾーン名 | 新アカウントに存在し、有効化されているゾーン名を指定 |
+| `GEMINI_API_KEY` | Gemini API機能（現状無効化中） | 現状コード側で無効化済み。再有効化する場合のみ必要 |
+| `GOOGLE_MAPS_STORAGE_STATE_B64` | Playwright関連ワークフローのログイン状態(Base64) | 関連ワークフローを本番利用する場合のみ必要 |
+| `GOOGLE_MAPS_STORAGE_STATE_JSON` | Playwright関連ワークフローのログイン状態(JSON) | 同上 |
+| `PRIVATE_REPO_PAT` | `googlemap`への読み書きアクセス | 新オーナー自身が発行し、`Contents: Read and write`権限を付与。`googlemap`のオーナーも同時に移行する前提 |
+| `GITHUB_TOKEN` | Issue操作・Actions内でのgit操作 | GitHub Actionsが自動発行するため、登録作業は不要 |
 
 ## 移行方針
 
