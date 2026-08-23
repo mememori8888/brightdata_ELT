@@ -78,7 +78,7 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 - [x] `brightdata_ELT`へコード・Actions・Webappの統合を完了させる — 完了(2026-08-23、`handover-roadmap`ブランチの内容をそのまま`brightdata_ELT`の`main`へforce push。コミット`fb720e0`まで反映。`private-data`/`googlemap`連携ロジックは変更せず維持。push時にPATへ`Workflows: Read and write`権限の追加が必要だった)
 - [x] ~~`demo`の各ワークフローが`googlemap`ではなく`brightdata_ELT`単体で完結するよう修正する（別リポジトリ依存を解消）~~ → **対象外(2026-08-23、ユーザー指示)**: `private-data`経由の`googlemap`連携ロジックは、他コードへの影響が読み切れないため変更しない。二重リポジトリ構成はそのまま維持する
 - [x] 移行後に新オーナー側で再発行が必要なSecretsを一覧化する — 完了(2026-08-23、`.github/workflows/`全体を実際に検索し、参照されている全Secrets名を確定。下表を参照)
-- [ ] 旧オーナー（開発者）側のPAT・APIキーを、移行後に失効させる手順を明記する
+- [x] 旧オーナー（開発者）側のPAT・APIキーを、移行後に失効させる手順を明記する — 完了(2026-08-23、下記「旧オーナー（開発者）側の失効手順」を参照。新オーナーの動作確認が取れるまでは失効させない順序とした)
 - [ ] 上記すべて完了後にのみ、ユーザーが手作業で「Transfer ownership」を実行する
 
 現時点でこのCodespacesの認証は`brightdata_ELT`へのアクセスが未確立のため、上記チェックリストのうち、ミラーバックアップと統合作業はまだ着手できない。次の1項目は、PATによる認証確立である。
@@ -106,6 +106,32 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 | `GOOGLE_MAPS_STORAGE_STATE_JSON` | Playwright関連ワークフローのログイン状態(JSON) | 同上 |
 | `PRIVATE_REPO_PAT` | `googlemap`への読み書きアクセス | 新オーナー自身が発行し、`Contents: Read and write`権限を付与。`googlemap`のオーナーも同時に移行する前提 |
 | `GITHUB_TOKEN` | Issue操作・Actions内でのgit操作 | GitHub Actionsが自動発行するため、登録作業は不要 |
+
+### 旧オーナー（開発者）側の失効手順（順序厳守）
+
+新オーナーが自分の認証情報で動作確認を終えるまでは、旧オーナーの認証情報を失効させない。順番を守らないと、確認前にシステムが停止する。
+
+1. **この移行作業で発行した一時PAT**（`brightdata_ELT`・`googlemap`へのバックアップ・push用）は、統合作業が完了した今すぐ失効してよい
+   - https://github.com/settings/personal-access-tokens で該当トークンをDelete
+2. `brightdata_ELT`・`googlemap`の所有権移転（Transfer ownership）を実行する（ユーザーが手作業）
+3. 新オーナーが、`brightdata_ELT`のSecretsを自分の認証情報で上書きする
+   - `BRIGHTDATA_API_TOKEN`: 新オーナー自身のBright Dataアカウントで発行したもの
+   - `BRIGHTDATA_ZONE_NAME`: 新アカウントで有効化したゾーン名
+   - `PRIVATE_REPO_PAT`: 新オーナー自身が発行し、`googlemap`への読み書き権限を付与したもの
+   - 必要な場合のみ`GEMINI_API_KEY`
+   - Playwright関連ワークフローを使う場合のみ`GOOGLE_MAPS_STORAGE_STATE_B64`/`GOOGLE_MAPS_STORAGE_STATE_JSON`（新オーナー自身のGoogleアカウントで取得し直す。旧オーナーの個人アカウントのログイン状態を引き継がない）
+4. 新オーナーが、小規模テスト（10件程度）を実行し、Actionsが正常に完了することを確認する
+5. 4の確認が取れて初めて、旧オーナー（開発者）は以下を失効させる
+   - 自分のBright Dataアカウントの当該APIトークン（Bright Dataダッシュボード側で無効化）
+   - 自分名義で発行していた`PRIVATE_REPO_PAT`（GitHub側でDelete）
+   - `GEMINI_API_KEY`を自分のアカウントで発行していた場合はそれも無効化
+   - Playwright用ストレージステートに使っていた自分のGoogleアカウントについて、該当セッションからサインアウト、または必要に応じてパスワード変更
+6. 旧オーナーが、`brightdata_ELT`・`googlemap`のコラボレーター一覧から自分自身を削除する（Transfer ownership後も自動では外れない場合があるため、手作業で確認する）
+
+### 完了条件
+
+- 1〜6が実施済みであることが、いずれかの記録（Issueコメント、チェックリストの更新等）に残っている
+- 旧オーナーの認証情報だけを無効化しても、新オーナー側の動作に影響がない状態になっている
 
 ## 移行方針
 
