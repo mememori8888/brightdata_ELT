@@ -76,7 +76,7 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 - [x] `brightdata_ELT`のミラーバックアップ（`git clone --mirror`）を取得する — 完了(2026-08-23、`/workspaces/backups/brightdata_ELT.git`、132KB、`main`ブランチのみ、内容は`README.md`のみで未統合の空リポジトリと確認)
 - [x] `settings/`・`results/`の内容を最新版でバックアップする — 完了(2026-08-23、`googlemap`ミラーから`git archive`で展開、`/workspaces/backups/googlemap_worktree/`、settings 7.6M・results 195M)
 - [ ] `brightdata_ELT`へコード・Actions・Webappの統合を完了させる
-- [ ] `demo`の各ワークフローが`googlemap`ではなく`brightdata_ELT`単体で完結するよう修正する（別リポジトリ依存を解消）
+- [x] ~~`demo`の各ワークフローが`googlemap`ではなく`brightdata_ELT`単体で完結するよう修正する（別リポジトリ依存を解消）~~ → **対象外(2026-08-23、ユーザー指示)**: `private-data`経由の`googlemap`連携ロジックは、他コードへの影響が読み切れないため変更しない。二重リポジトリ構成はそのまま維持する
 - [ ] 移行後に新オーナー側で再発行が必要なSecretsを一覧化する（`BRIGHTDATA_API_TOKEN`、`BRIGHTDATA_ZONE_NAME`、`PRIVATE_REPO_PAT`、必要なら`GEMINI_API_KEY`）
 - [ ] 旧オーナー（開発者）側のPAT・APIキーを、移行後に失効させる手順を明記する
 - [ ] 上記すべて完了後にのみ、ユーザーが手作業で「Transfer ownership」を実行する
