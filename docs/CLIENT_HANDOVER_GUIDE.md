@@ -43,7 +43,6 @@ Issueへ完了コメント
 - Bright Dataのアカウント（[公式サイト](https://get.brightdata.com/mam10)）
   - 施設取得・レビュー取得に使う「SERP API」「Web Scraper API」を利用できる契約が必要です
   - 利用料金はBright Data側との契約に基づき発生します。開発費とは別に、ご自身の名義・支払い方法で契約してください
-- （Playwright関連の機能を使う場合のみ）ログイン用のGoogleアカウント
 
 ---
 
@@ -63,8 +62,6 @@ https://github.com/<あなたのアカウント>/brightdata_ELT/settings/secrets
 | `BRIGHTDATA_API_TOKEN` | Bright Dataのダッシュボードで発行するAPIトークン | 必須 |
 | `BRIGHTDATA_ZONE_NAME` | Bright Data側で有効化したSERP APIのゾーン名（例: `serp_api2`） | 必須 |
 | `GEMINI_API_KEY` | Gemini APIを使う場合のみ発行（現状コード側で無効化されているため未設定でも動作します） | 任意 |
-| `GOOGLE_MAPS_STORAGE_STATE_B64` | Playwright関連ワークフローを使う場合のみ | 任意 |
-| `GOOGLE_MAPS_STORAGE_STATE_JSON` | Playwright関連ワークフローを使う場合のみ | 任意 |
 
 `GITHUB_TOKEN`は登録不要です（GitHub Actionsが自動的に発行します）。
 
@@ -74,6 +71,8 @@ https://github.com/<あなたのアカウント>/brightdata_ELT/settings/secrets
 2. Repository access に `brightdata_ELT` と `googlemap` の両方を選択
 3. Permissions で `Contents: Read and write` を選択
 4. `.github/workflows/`を更新する予定がある場合は `Workflows: Read and write` も選択
+
+Playwrightを使った関連度取得機能は現在使用しないため、`GOOGLE_MAPS_STORAGE_STATE_B64`・`GOOGLE_MAPS_STORAGE_STATE_JSON`の登録は不要です。
 
 ---
 
