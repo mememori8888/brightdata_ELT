@@ -83,6 +83,15 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 
 現時点でこのCodespacesの認証は`brightdata_ELT`へのアクセスが未確立のため、上記チェックリストのうち、ミラーバックアップと統合作業はまだ着手できない。次の1項目は、PATによる認証確立である。
 
+### 認証作業ログ（2026-08-23）
+
+- `gh auth login`をCodespaces既定`GITHUB_TOKEN`と競合させず実行するため、`unset GITHUB_TOKEN`が必要だった
+- 新規PATでの認証後、`gh auth switch`でアクティブアカウントを切り替え、`brightdata_ELT`へのアクセスを確認した（Private、pushedAt 2026-08-22T13:02:59Z）
+- `googlemap`は同じPATでアクセス不可。原因切り分け中に、チャットへ誤って貼られた旧PATが未失効のまま残っていたことが判明
+- 旧PATは失効(Delete)済みであることを確認した
+- 直後、`gh auth login`のトークン検証時に`API rate limit exceeded for user ID 42532462`が2回連続発生。アカウントに対する異常な呼び出しの可能性があるため、GitHubのセキュリティログ（`https://github.com/settings/security-log`）で不審なアクセスがないか確認中
+- 次の作業は、レート制限解除後に新PATで再ログインし、`googlemap`へのアクセスを再確認すること
+
 ## 移行方針
 
 引き渡し先は、コード・GitHub Actions・Webapp・設定・入力データ・結果データをまとめた1つのプライベートリポジトリとする。現在の`demo`と`googlemap`をそのまま運用させるのではなく、統合後のリポジトリを受領者の管理下に置く。
