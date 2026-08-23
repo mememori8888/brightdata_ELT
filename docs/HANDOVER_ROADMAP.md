@@ -50,14 +50,26 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 
 上記は、GitHub権限、受領者のSecrets、Bright Dataアカウント、テスト用データが必要であり、ローカルのコード検証だけでは完了扱いにしない。
 
+## 統合先リポジトリ（確定）
+
+- 移行先: `mememori8888/brightdata_ELT`
+- このCodespacesの既定トークンは`demo`専用スコープのため、`brightdata_ELT`へは直接アクセスできないことを確認済み
+- アクセスには、`Contents: Read and write`権限を持つ Personal Access Token（Fine-grained）が必要
+- 2026-08-22: チャット上にPATが誤って貼り付けられた。当該トークンは漏えい扱いとし、GitHub側で失効(Revoke)済みであることを前提とする。以後、トークンはターミナルにのみ入力する運用に変更
+- 現時点で`gh auth status`はCodespaces既定の`GITHUB_TOKEN`のままであり、`brightdata_ELT`への認証はまだ完了していない
+
 ## 移行方針
 
 引き渡し先は、コード・GitHub Actions・Webapp・設定・入力データ・結果データをまとめた1つのプライベートリポジトリとする。現在の`demo`と`googlemap`をそのまま運用させるのではなく、統合後のリポジトリを受領者の管理下に置く。
 
+統合先リポジトリ: `mememori8888/brightdata_ELT`（作成済み、2026-08-22）
+
+- 現在のCodespaces（`demo`用の一時トークン）からはアクセス不可を確認済み。プッシュ・Secrets設定・Actions確認は、受領者またはオーナー自身のGitHubログインで行う必要がある。
+
 ### 統合後の構成
 
 ```text
-handover-repository/
+brightdata_ELT/
 ├── .github/workflows/
 ├── .github/scripts/
 ├── docs/webapp/
@@ -80,7 +92,7 @@ handover-repository/
 
 ### 統合時に手作業で必要な項目
 
-- 新しいプライベートリポジトリの作成
+- ~~新しいプライベートリポジトリの作成~~ → 完了（`mememori8888/brightdata_ELT`）
 - `googlemap/settings/`と`googlemap/results/`の内容確認・移行
 - GitHub IssuesとActionsの有効化
 - GitHub Actionsの権限設定
