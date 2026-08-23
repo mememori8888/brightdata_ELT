@@ -129,6 +129,15 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 
 `main.py`と99%同一のロジックを持つ重複ファイルだったが、`'settings'`を`'setting'`と誤記した独自のパスバグを含み、`main.py`以上に壊れていた。どこからも参照されていないことを確認したうえで削除した。
 
+### Google Places API機能のWebapp/Issueオーケストレーター統合（2026-08-23）
+
+`/run-facility-places`コマンドを新設し、Webappから`main_places_api.yml`（Google Places API版）を実行できるようにした。
+
+- `.github/workflows/issue-ops-universal.yml`: コマンド検出（`/run-facility`より先に判定）、必須ファイル検証、`config_file`存在チェック、`run-facility-places`ジョブ（`main_places_api.yml`をworkflow_call）、完了報告への統合
+- `docs/webapp/index.html`・`docs/webapp/app.js`: ワークフロー選択肢・専用フォーム・Issue本文生成を追加
+- `main.py`のレビュー処理には、開発者自身が残した`#ここがおかしいよ`という未解決の既知課題（既存レビューの更新ロジックが不完全）がある。今回は組み込みのみ行い、このロジック自体は未修正
+- `main.py`が要求する設定ファイルは「タスクのリスト」形式（`settings/settings.json`と同じ構造）のみ対応。`care_*.json`等の単一タスク形式との互換性は未確認のため、Webapp側では固定で`settings/settings.json`を指定する設計とした
+
 ### 旧オーナー（開発者）側の失効手順（順序厳守）
 
 新オーナーが自分の認証情報で動作確認を終えるまでは、旧オーナーの認証情報を失効させない。順番を守らないと、確認前にシステムが停止する。
