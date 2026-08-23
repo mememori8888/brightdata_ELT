@@ -58,6 +58,31 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 - 2026-08-22: チャット上にPATが誤って貼り付けられた。当該トークンは漏えい扱いとし、GitHub側で失効(Revoke)済みであることを前提とする。以後、トークンはターミナルにのみ入力する運用に変更
 - 現時点で`gh auth status`はCodespaces既定の`GITHUB_TOKEN`のままであり、`brightdata_ELT`への認証はまだ完了していない
 
+## オーナー移行スコープ（2026-08-23確定）
+
+- 移行対象: `googlemap`（プライベートデータ）と`brightdata_ELT`（統合先）の2リポジトリ
+- `demo`はオーナー移行の対象外。現行オーナーのまま残す
+- 移行先: 同一アカウント内の権限付与ではなく、**別GitHubアカウントへの所有権移転**（GitHub の Transfer ownership機能）
+- 実際の「Transfer ownership」操作自体は、ユーザーが手作業でGitHub画面から行う
+- こちら（エージェント）が担当するのは、**その手前の段階**まで
+  - バックアップの取得と確認
+  - `brightdata_ELT`への統合作業の完了
+  - 移行後に必要な設定（Secrets再発行など）の明文化
+  - 移行前チェックリストの整備
+
+### 手動オーナー移行 前段階チェックリスト
+
+- [ ] `googlemap`のミラーバックアップ（`git clone --mirror`）を取得する
+- [ ] `brightdata_ELT`のミラーバックアップ（`git clone --mirror`）を取得する
+- [ ] `settings/`・`results/`の内容を最新版でバックアップする
+- [ ] `brightdata_ELT`へコード・Actions・Webappの統合を完了させる
+- [ ] `demo`の各ワークフローが`googlemap`ではなく`brightdata_ELT`単体で完結するよう修正する（別リポジトリ依存を解消）
+- [ ] 移行後に新オーナー側で再発行が必要なSecretsを一覧化する（`BRIGHTDATA_API_TOKEN`、`BRIGHTDATA_ZONE_NAME`、`PRIVATE_REPO_PAT`、必要なら`GEMINI_API_KEY`）
+- [ ] 旧オーナー（開発者）側のPAT・APIキーを、移行後に失効させる手順を明記する
+- [ ] 上記すべて完了後にのみ、ユーザーが手作業で「Transfer ownership」を実行する
+
+現時点でこのCodespacesの認証は`brightdata_ELT`へのアクセスが未確立のため、上記チェックリストのうち、ミラーバックアップと統合作業はまだ着手できない。次の1項目は、PATによる認証確立である。
+
 ## 移行方針
 
 引き渡し先は、コード・GitHub Actions・Webapp・設定・入力データ・結果データをまとめた1つのプライベートリポジトリとする。現在の`demo`と`googlemap`をそのまま運用させるのではなく、統合後のリポジトリを受領者の管理下に置く。
