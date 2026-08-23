@@ -89,8 +89,9 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 - 新規PATでの認証後、`gh auth switch`でアクティブアカウントを切り替え、`brightdata_ELT`へのアクセスを確認した（Private、pushedAt 2026-08-22T13:02:59Z）
 - `googlemap`は同じPATでアクセス不可。原因切り分け中に、チャットへ誤って貼られた旧PATが未失効のまま残っていたことが判明
 - 旧PATは失効(Delete)済みであることを確認した
-- 直後、`gh auth login`のトークン検証時に`API rate limit exceeded for user ID 42532462`が2回連続発生。アカウントに対する異常な呼び出しの可能性があるため、GitHubのセキュリティログ（`https://github.com/settings/security-log`）で不審なアクセスがないか確認中
-- 次の作業は、レート制限解除後に新PATで再ログインし、`googlemap`へのアクセスを再確認すること
+- 直後、`gh auth login`のトークン検証時に`API rate limit exceeded for user ID 42532462`が3回連続発生。REST API(`/user`)側の二次的なレート制限とみられ、`gh auth login`の再試行は行わない方針に切り替えた
+- 代替として、`git ls-remote`にトークンをURL埋め込みで渡す方式（Git Smart HTTPプロトコル、REST APIとは別の窓口）で`googlemap`への到達性を確認し、成功した（ブランチ・PR参照が取得できた）
+- `gh`コマンドでの操作は当面レート制限の影響を受ける可能性があるため、バックアップ等はまず`git`直接操作で進める
 
 ## 移行方針
 
