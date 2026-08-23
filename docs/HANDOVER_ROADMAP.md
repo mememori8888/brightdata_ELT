@@ -40,6 +40,11 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
   - Bright Data Dataset ID(`gd_luzfs1dn2oa0teb81`)がWebapp・資料に複数存在するが、単体では認証情報として機能しないため公開して問題ない
 - 上記確認により、`brightdata_ELT`のPublic化によって新たに漏えいする機微情報は見つからなかった
 - `googlemap`は引き続きPrivateのまま移行する
+- 2026-08-23: `brightdata_ELT`のPublic化を実施済み。`GET /repos/mememori8888/brightdata_ELT`で`private: false`・`visibility: public`を確認
+- Public化後の安全性を`issue-ops-universal.yml`の権限判定ロジックで再検証した
+  - Issue作成者がオーナーまたは`AUTO_RUN_USERS`(`jmh8128494-cloud`・`asahi26366`)以外の場合、`should_run=preview`となり実行されない
+  - 上記以外のユーザーが`/承認`をコメントしても`should_run=false`となり、権限不足の通知コメントが自動投稿されるだけで実行はされない
+  - Public化により誰でもIssue・コメントを作成できるようになったが、実行権限自体はオーナーと許可リスト2名に限定されたままである
 
 ## 2026-08-22時点の進捗
 
