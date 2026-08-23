@@ -72,7 +72,7 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 
 ### 手動オーナー移行 前段階チェックリスト
 
-- [ ] `googlemap`のミラーバックアップ（`git clone --mirror`）を取得する
+- [x] `googlemap`のミラーバックアップ（`git clone --mirror`）を取得する — 完了(2026-08-23、`/workspaces/backups/googlemap.git`、270MB、ブランチ: main/master/copilot/collect-user-reviews/copilot/explore-agent-capabilities)
 - [ ] `brightdata_ELT`のミラーバックアップ（`git clone --mirror`）を取得する
 - [ ] `settings/`・`results/`の内容を最新版でバックアップする
 - [ ] `brightdata_ELT`へコード・Actions・Webappの統合を完了させる
