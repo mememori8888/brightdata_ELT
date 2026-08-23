@@ -138,6 +138,14 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 - `main.py`のレビュー処理には、開発者自身が残した`#ここがおかしいよ`という未解決の既知課題（既存レビューの更新ロジックが不完全）がある。今回は組み込みのみ行い、このロジック自体は未修正
 - `main.py`が要求する設定ファイルは「タスクのリスト」形式（`settings/settings.json`と同じ構造）のみ対応。`care_*.json`等の単一タスク形式との互換性は未確認のため、Webapp側では固定で`settings/settings.json`を指定する設計とした
 
+### Google Places APIにオーナー返信データが存在しないことの確認（2026-08-23）
+
+- `scripts/diagnose_places_api_review_fields.py`を作成し、実際のPlaces API (New) レスポンスの`reviews`配列のキー一覧を実データで確認した
+- 確認の結果、オーナー（施設側）の返信を示すフィールドは**存在しなかった**
+- これはGoogle Places APIの仕様上の制限であり、`main.py`の実装不備ではない
+- `results/dental_reviews.csv`等にある`オーナー返信`列は、Bright Data（実ページを解析するWeb Scraper API）でのみ取得可能。Google Places API経由（`/run-facility-places`）で新規追加される行は、この列が常に空欄になる
+- 運用方針: オーナー返信が必要な場合は、引き続きBright Data経由（`/run-reviews`系）で取得する。`/run-facility-places`（Google Places API）は、オーナー返信を含まない前提の、低コストな施設・レビュー基本情報取得と位置づける
+
 ### 旧オーナー（開発者）側の失効手順（順序厳守）
 
 新オーナーが自分の認証情報で動作確認を終えるまでは、旧オーナーの認証情報を失効させない。順番を守らないと、確認前にシステムが停止する。

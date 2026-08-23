@@ -100,6 +100,19 @@ Playwrightを使った関連度取得機能は現在使用しないため、`GOO
 
 ---
 
+## 2種類の取得方法の使い分け
+
+このシステムには、施設・レビューを取得する方法が2種類あります。データソースが異なるため、取得できる項目にも違いがあります。
+
+| 取得方法 | Issueコマンド | 必要なSecret | オーナー返信 |
+|---|---|---|---|
+| Bright Data（Web Scraper API / SERP API） | `/run-reviews`系 | `BRIGHTDATA_API_TOKEN` 等 | 取得できる |
+| Google Places API（公式API） | `/run-facility-places` | `GOOGLE_MAPS_API_KEY` | **取得できない**（Google公式APIの仕様上の制限） |
+
+オーナー返信の情報が必要な場合は、必ずBright Data経由（`/run-reviews`系）を使用してください。Google Places API経由で取得したレビューは、`オーナー返信`列が常に空欄になります。これはシステムの不具合ではなく、Google Places APIが公式にオーナー返信を提供していないためです。
+
+---
+
 ## うまくいかない場合の確認ポイント
 
 | 症状 | 確認すること |
