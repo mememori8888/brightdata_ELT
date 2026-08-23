@@ -125,6 +125,10 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 | `GITHUB_TOKEN` | Issue操作・Actions内でのgit操作 | GitHub Actionsが自動発行するため、登録作業は不要 |
 | `GOOGLE_MAPS_API_KEY` | `main.py`（Google Places API版・新規ワークフロー`main_places_api.yml`）の認証 | 2026-08-23追加。旧`settings/api_key.json`方式から環境変数方式に変更 |
 
+### main_category.pyの削除（2026-08-23）
+
+`main.py`と99%同一のロジックを持つ重複ファイルだったが、`'settings'`を`'setting'`と誤記した独自のパスバグを含み、`main.py`以上に壊れていた。どこからも参照されていないことを確認したうえで削除した。
+
 ### 旧オーナー（開発者）側の失効手順（順序厳守）
 
 新オーナーが自分の認証情報で動作確認を終えるまでは、旧オーナーの認証情報を失効させない。順番を守らないと、確認前にシステムが停止する。
