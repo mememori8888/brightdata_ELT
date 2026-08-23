@@ -146,6 +146,15 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 - `results/dental_reviews.csv`等にある`オーナー返信`列は、Bright Data（実ページを解析するWeb Scraper API）でのみ取得可能。Google Places API経由（`/run-facility-places`）で新規追加される行は、この列が常に空欄になる
 - 運用方針: オーナー返信が必要な場合は、引き続きBright Data経由（`/run-reviews`系）で取得する。`/run-facility-places`（Google Places API）は、オーナー返信を含まない前提の、低コストな施設・レビュー基本情報取得と位置づける
 
+### 施設ファイルの緯度・経度 列名ゆれの修正（2026-08-23）
+
+- 現行の`results/dental_new.csv`は座標列が`latitude`/`longitude`（英語）だが、`main.py`は`緯度`/`経度`（日本語）で読み書きしており、列名が一致していなかった
+- 修正前は、既存の本番施設ファイルを指定して更新すると、座標が2組の別々の列に分裂し、データが半分ずつ空欄になる問題があった
+- `main.py`に双方向の同期処理を追加した
+  - 読み込み時: `緯度`/`経度`が無く`latitude`/`longitude`がある場合、そこから補完
+  - 書き込み前: 新規行（Places API由来）の`緯度`/`経度`から`latitude`/`longitude`を補完（既存値は上書きしない）
+- ローカルでの簡易検証により、新旧どちらの行も4列すべてに値が入ることを確認した
+
 ### 旧オーナー（開発者）側の失効手順（順序厳守）
 
 新オーナーが自分の認証情報で動作確認を終えるまでは、旧オーナーの認証情報を失効させない。順番を守らないと、確認前にシステムが停止する。

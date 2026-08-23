@@ -257,6 +257,14 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
         if '営業ステータス' not in facility_df.columns:
             print("既存施設ファイルに営業ステータス列がありません。空列として追加します。")
             facility_df['営業ステータス'] = ''
+
+        # 緯度・経度の列名ゆれを吸収する（新旧データで 緯度/経度 と latitude/longitude が混在するため）
+        if '緯度' not in facility_df.columns and 'latitude' in facility_df.columns:
+            print("既存施設ファイルの緯度列を latitude から補完します。")
+            facility_df['緯度'] = facility_df['latitude']
+        if '経度' not in facility_df.columns and 'longitude' in facility_df.columns:
+            print("既存施設ファイルの経度列を longitude から補完します。")
+            facility_df['経度'] = facility_df['longitude']
     else:
         print(f"施設情報ファイル '{facility_file}' が存在しないか空です。新しく作成します。")
         # 新しいファイルを作成し、空のDataFrameを初期化
@@ -566,7 +574,12 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
 
     # 重複を削除
     added_facility_df = added_facility_df.drop_duplicates(subset=subset_cols).dropna(subset=subset_cols)
-    
+
+    # 緯度・経度の列名ゆれを吸収する（latitude/longitude 列を持つ既存ファイルとの互換性維持のため、双方向に同期する）
+    if 'latitude' in added_facility_df.columns and '緯度' in added_facility_df.columns:
+        added_facility_df['latitude'] = added_facility_df['latitude'].fillna(added_facility_df['緯度'])
+    if 'longitude' in added_facility_df.columns and '経度' in added_facility_df.columns:
+        added_facility_df['longitude'] = added_facility_df['longitude'].fillna(added_facility_df['経度'])
     
         # 列名 (文字列) をリストで指定
     subset_review_cols = ['レビューGID']
