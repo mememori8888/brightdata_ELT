@@ -602,14 +602,21 @@ def run_from_config(config_file, exclude_gids_path=None):
         print(f"エラー: 設定ファイル '{config_file}' の形式が不正です。JSON形式を確認してください。")
         return
 
-    # # 環境変数からAPIキーを取得
-    # api_key = os.environ.get('GOOGLE_MAPS_API_KEY')
-    # if not api_key:
-    #     print("エラー: 環境変数 'GOOGLE_MAPS_API_KEY' が設定されていません。")
-    #     return
-    api_file_path = 'settings/api_key.json'
-    api_key = extract_api_key_from_json(api_file_path) # settingsフォルダからの読み込み
-   
+    # 環境変数からAPIキーを取得（GitHub Secrets: GOOGLE_MAPS_API_KEY を想定）
+    api_key = os.environ.get('GOOGLE_MAPS_API_KEY')
+    if not api_key:
+        print("エラー: 環境変数 'GOOGLE_MAPS_API_KEY' が設定されていません。")
+        print("  GitHub Actionsの場合はSecretsに、ローカル実行の場合は環境変数として設定してください。")
+        return
+
+    def _safe_join(base_dir, raw_path):
+        """base_dir が既に含まれている場合は二重に連結しない（例: settings/settings/... を防ぐ）"""
+        if raw_path is None:
+            return None
+        normalized = raw_path.replace('\\', '/')
+        if normalized == base_dir or normalized.startswith(f"{base_dir}/"):
+            return raw_path
+        return os.path.join(base_dir, raw_path)
 
     for task in tasks:
         task_name = task.get('task_name', '未定義タスク')
@@ -619,13 +626,13 @@ def run_from_config(config_file, exclude_gids_path=None):
         results_dir = "results"
         os.makedirs(results_dir, exist_ok=True)
 
-        # ファイルパスをresultsディレクトリ配下に設定
-        file_path = os.path.join('settings', task.get('address_csv_path')) # address.csvはsettingsフォルダにある想定
-        facility_file = os.path.join(results_dir, task.get('facility_file'))
-        review_file = os.path.join(results_dir, task.get('review_file'))
-        update_facility_path = os.path.join(results_dir, task.get('update_facility_path'))
-        update_review_path = os.path.join(results_dir, task.get('update_review_path'))
-        exclude_gids_path = os.path.join('settings', task.get('exclude_gids_path')) if task.get('exclude_gids_path') else None # 設定ファイルから読み込む
+        # ファイルパスを解決（settings.json側に既にフォルダ名を含む場合と含まない場合の両方に対応）
+        file_path = _safe_join('settings', task.get('address_csv_path')) # address.csvはsettingsフォルダにある想定
+        facility_file = _safe_join(results_dir, task.get('facility_file'))
+        review_file = _safe_join(results_dir, task.get('review_file'))
+        update_facility_path = _safe_join(results_dir, task.get('update_facility_path'))
+        update_review_path = _safe_join(results_dir, task.get('update_review_path'))
+        exclude_gids_path = _safe_join('settings', task.get('exclude_gids_path')) if task.get('exclude_gids_path') else None # 設定ファイルから読み込む
 
         print(f'設定された検索クエリの業種は　{base_query}')
         print(f'設定された検索クエリの住所は　{file_path}')
@@ -663,4 +670,6 @@ def run_from_config(config_file, exclude_gids_path=None):
 
 
 if __name__ == "__main__":
-    run_from_config("settings/settings.json")
+    CONFIG_FILE = os.environ.get('CONFIG_FILE', 'settings/settings.json')
+    print(f"🚀 Starting with CONFIG_FILE: {CONFIG_FILE}")
+    run_from_config(CONFIG_FILE)

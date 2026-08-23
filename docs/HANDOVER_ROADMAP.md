@@ -123,6 +123,7 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 | `GOOGLE_MAPS_STORAGE_STATE_JSON` | Playwright関連ワークフローのログイン状態(JSON) | 同上 |
 | `PRIVATE_REPO_PAT` | `googlemap`への読み書きアクセス | 新オーナー自身が発行し、`Contents: Read and write`権限を付与。`googlemap`のオーナーも同時に移行する前提 |
 | `GITHUB_TOKEN` | Issue操作・Actions内でのgit操作 | GitHub Actionsが自動発行するため、登録作業は不要 |
+| `GOOGLE_MAPS_API_KEY` | `main.py`（Google Places API版・新規ワークフロー`main_places_api.yml`）の認証 | 2026-08-23追加。旧`settings/api_key.json`方式から環境変数方式に変更 |
 
 ### 旧オーナー（開発者）側の失効手順（順序厳守）
 
