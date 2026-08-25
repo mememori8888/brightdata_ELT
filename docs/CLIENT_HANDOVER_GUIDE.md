@@ -99,7 +99,7 @@ Playwrightを使った関連度取得機能は現在使用しないため、`GOO
 1. 公開Webapp `https://<あなたのアカウント>.github.io/brightdata_ELT/webapp/` をブラウザで開く
 2. 少人数分（10件程度）のテスト用CSVで、レビュー取得または施設取得を選択する
    - Google Places API版では、まず「設定プリセット」から通常用またはテスト用を選択する
-   - プリセットから検索キーワード、カテゴリ、住所CSV、除外GID、各出力CSVが自動設定されるため、必要な項目だけ変更する
+   - プリセットから検索キーワード、住所CSV、除外GID、各出力CSVが自動設定されるため、必要な項目だけ変更する
    - 最初の小規模テストでは「テスト」と表示されるプリセットと `settings/address_test.csv` を使用する
 3. 「GitHubでIssueを作成」からIssueを作成する
 4. `brightdata_ELT`の「Actions」タブで、ワークフローが起動し、正常に完了するか確認する

@@ -162,7 +162,8 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API / Google Places A
 `/run-facility-places`コマンドを新設し、Webappから`main_places_api.yml`（Google Places API版）を実行できるようにした。
 
 - `.github/workflows/issue-ops-universal.yml`: コマンド検出（`/run-facility`より先に判定）、必須ファイル検証、`config_file`存在チェック、`run-facility-places`ジョブ（`main_places_api.yml`をworkflow_call）、完了報告への統合
-- `docs/webapp/index.html`・`docs/webapp/app.js`: ワークフロー選択肢・専用フォーム・Issue本文生成を追加。2026-08-25に設定プリセット化し、検索キーワード、`includedType`、住所CSV、除外GID、施設・レビュー・増分出力をプルダウンから選択可能にした
+- `docs/webapp/index.html`・`docs/webapp/app.js`: ワークフロー選択肢・専用フォーム・Issue本文生成を追加。2026-08-25に設定プリセット化し、検索キーワード、住所CSV、除外GID、施設・レビュー・増分出力をプルダウンから選択可能にした。`includedType` はWebApp入力から除外し、Issue本文から管理者承認の案内を削除した
+- `get_reviews_from_dental_new.py`: 逐次レビュー取得で正常な0件応答を成功として扱い、通信・スナップショット失敗だけをActionsエラーにするよう修正した
 - `main.py`のレビュー処理には、開発者自身が残した`#ここがおかしいよ`という未解決の既知課題（既存レビューの更新ロジックが不完全）がある。今回は組み込みのみ行い、このロジック自体は未修正
 - `care_*.json`も`settings/settings.json`と同じタスクリスト形式であることを確認。2026-08-25のIssue #22で`settings/care_group-home_test.json`の読み込み、検証、`main.py`実行開始まで実機確認した
 

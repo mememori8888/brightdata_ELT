@@ -524,16 +524,16 @@ class BrightDataWebScraperReviews:
                     continue
                 else:
                     logging.error(f"❌ Failed to download snapshot after {retries} attempts")
-                    return []
+                    raise
             except Exception as e:
                 logging.error(f"❌ Unexpected error during snapshot download: {e}")
                 if attempt < retries:
                     time.sleep(interval)
                     continue
                 else:
-                    return []
+                    raise
         
-        return []  # すべてのリトライが失敗した場合
+        raise RuntimeError(f"Failed to download snapshot {snapshot_id}")
     
     def process_batch(self, urls_with_params: List[Dict], batch_id: str = "0") -> List[Dict]:
         """
@@ -571,7 +571,7 @@ class BrightDataWebScraperReviews:
                 logging.error(f"❌ バッチ {batch_id}: スナップショット処理失敗")
                 elapsed = time.time() - start_time
                 logging.error(f"  総処理時間: {int(elapsed)}秒")
-                return []
+                raise RuntimeError(f"Snapshot processing failed: {snapshot_id}")
             wait_elapsed = time.time() - wait_start
             
             logging.info(f"✅ スナップショット処理完了 ({wait_elapsed:.1f}秒)")
@@ -1038,9 +1038,10 @@ def main():
             reviews = client.process_batch(urls_with_params, batch_id=str(batch_idx))
             
             if not reviews:
-                logging.warning(f'❌ APIチャンク {batch_idx} でレビューが取得できませんでした')
-                stats['failed_batches'] += 1
-                logging.info(f'   結果: 失敗 (リビュー取得0件)')
+                # スナップショットがreadyになり、ダウンロードも成功した空配列は
+                # 「期間内レビュー0件」でありAPI失敗ではない。
+                stats['successful_batches'] += 1
+                logging.info(f'✅ APIチャンク {batch_idx}: 期間内レビュー0件（正常終了）')
                 continue
             
             logging.info(f'✅ APIチャンク {batch_idx}: {len(reviews)}件のレビュー取得完了')

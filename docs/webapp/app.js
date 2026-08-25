@@ -545,9 +545,6 @@ function applyPlacesProfile(profileId) {
     ensureSelectOption('places_query', profile.query, profile.query);
     document.getElementById('places_query').value = profile.query || '';
 
-    ensureSelectOption('places_included_type', profile.included_type, profile.included_type);
-    document.getElementById('places_included_type').value = profile.included_type || '';
-
     ensureSelectOption('places_address_csv', profile.address_csv, profile.address_csv?.replace(/^settings\//, ''));
     document.getElementById('places_address_csv').value = profile.address_csv || '';
 
@@ -580,7 +577,6 @@ function populatePlacesProfiles(profiles) {
             seenQueries.add(profile.query);
             ensureSelectOption('places_query', profile.query, profile.query);
         }
-        ensureSelectOption('places_included_type', profile.included_type, profile.included_type);
     });
 
     const defaultProfile = fileCache.placesProfiles.find(profile => profile.config_file === 'settings/settings.json')
@@ -1022,7 +1018,6 @@ function getFormData() {
             data.config_file = document.getElementById('places_config_file')?.value || 'settings/settings.json';
             data.profile_id = document.getElementById('places_profile')?.value || '';
             data.search_query = document.getElementById('places_query')?.value || '';
-            data.included_type = document.getElementById('places_included_type')?.value || '';
             data.exclude_gids_file = document.getElementById('places_exclude_gids_file')?.value || '';
             data.address_csv = document.getElementById('places_address_csv')?.value || '';
             data.facility_file = resolveSelectedFile('places_facility_file', 'places_facility_file_new', 'results');
@@ -1149,7 +1144,6 @@ function generateIssueBody(data) {
             body += `### 🗺️ 施設・レビュー取得（Google Places API）\n\n`;
             body += `- **設定プリセット**: \`${data.profile_id}\`\n`;
             body += `- **検索キーワード**: \`${data.search_query}\`\n`;
-            body += `- **カテゴリ**: \`${data.included_type || '指定なし'}\`\n`;
             if (data.exclude_gids_file) body += `- **除外GIDファイル**: \`${data.exclude_gids_file}\`\n`;
             if (data.address_csv) body += `- **入力住所CSV**: \`${data.address_csv}\`\n`;
             if (data.facility_file) body += `- **施設出力CSV**: \`${data.facility_file}\`\n`;
@@ -1160,9 +1154,6 @@ function generateIssueBody(data) {
             break;
             
     }
-    
-    body += `\n---\n\n`;
-    body += `⚠️ **管理者へ**: 内容を確認後、コメントに \`/承認\` と入力して承認してください。\n`;
     
     return body;
 }
