@@ -1,6 +1,6 @@
 # クライアント向け運用開始・移管ガイド
 
-更新日: 2026-08-25
+更新日: 2026-08-26
 
 この文書は、所有権移転後の新オーナーを`jmh8128494-cloud`として記載しています。
 
@@ -147,7 +147,54 @@ ActionsとIssuesの機能は必要ですが、`PRIVATE_REPO_PAT`へ`Actions`や`
 - `googlemap/main`のbranch ruleがPATによる結果CSVのpushを拒否しない
 - `googlemap`をPublicへ変更していない
 
-## 5. 実行権限
+## 5. 移管前後のリポジトリ設定チェックリスト
+
+2026-08-26の監査時点では、両リポジトリともPrivateで、Issues・Actions・公開GitHub Pages・Private fork許可が有効です。`googlemap`には移管を妨げる同一ネットワークのforkが1件あります。
+
+| 設定 | `brightdata_ELT`の現在値 | `googlemap`の現在値 | 移管後の方針 |
+|---|---|---|---|
+| 公開範囲 | Private | Private | `brightdata_ELT`はPublicかPrivateかを決定、`googlemap`はPrivateを維持 |
+| 既定ブランチ | `main` | `main` | 両方とも`main`を維持 |
+| Issues | 有効 | 有効 | `brightdata_ELT`は有効、データ保管専用の`googlemap`は無効化を推奨 |
+| Actions | 有効、すべてのActionを許可 | 有効、workflowなし | `brightdata_ELT`は有効、`googlemap`は無効化を推奨 |
+| GitHub Pages | `main`の`/docs`を公開 | `main`の`/docs`を公開 | `brightdata_ELT`は移管後に再設定、`googlemap`は無効化 |
+| Private fork | 許可 | 許可、同一ネットワークにforkが1件 | `googlemap`は既存fork解消後に`Allow forking`を無効化 |
+| ruleset・branch protection | なし | なし | 直接pushを維持する場合は現状のまま。追加する場合はActions・PATのpushを許可 |
+| Secrets | 移管用の名前をダミー登録済み | 旧API Secretが残存 | `brightdata_ELT`を実値へ更新後、`googlemap`の不要Secretを削除・失効 |
+| branch | `main` | `main`、`master`、`copilot/*` | `googlemap`は必要な変更を確認し、不要branchを退避後に削除 |
+| collaborator | 旧オーナーのみ | 新オーナー候補と運用ユーザーを含む | 受入完了後に旧オーナー・運用ユーザーの継続権限を決定 |
+| Webhook・Deploy key | なし | なし | 追加対応なし |
+
+### 移管前
+
+1. `jmh8128494-cloud`側の`googlemap` forkに独自変更がないか確認し、必要なcommit・branchを退避する
+2. forkを削除またはGitHub Supportで切り離し、`googlemap`のTransferを可能にする
+3. `brightdata_ELT`をPublicで運用するかPrivateで運用するか決定する
+4. Privateを選ぶ場合は、`jmh8128494-cloud`のプランでPrivate Pagesが利用できるか、Actionsの月間分数と予算を確認する
+5. `asahi26366`を移管後も自動実行ユーザー・`googlemap`共同編集者として残すか決定する
+
+### 移管直後
+
+1. `googlemap`がPrivate、両リポジトリの既定ブランチが`main`であることを確認する
+2. 新オーナー自身が`PRIVATE_REPO_PAT`を発行し、`brightdata_ELT`のダミーSecretを実値へ更新する
+3. `GOOGLE_MAPS_API_KEY`と`BRIGHTDATA_API_TOKEN`を新オーナー管理の実値へ更新する
+4. `brightdata_ELT`のIssuesとActionsを有効にし、`main`の`/docs`からPagesを再設定する
+5. Pagesの新URLを開き、WebAppが`jmh8128494-cloud/brightdata_ELT`へIssueを作成することを確認する
+6. `WebApp用ファイル一覧・住所CSV検証` workflowを1回実行し、移管後の`googlemap`からファイル一覧を再生成する
+7. WebAppの設定・住所・入力・出力プルダウンへ移管後のファイルが表示されることを確認する
+
+### 受入成功後の整理
+
+1. `googlemap`のGitHub Pages、Issues、Actions、`Allow forking`を無効化する
+2. `brightdata_ELT`で実値Secretが動作することを確認後、`googlemap`に残る不要な`BRIGHTDATA_API_TOKEN`と`GEMINI_API_KEY`を削除し、旧tokenを失効する
+3. `googlemap`の`master`・`copilot/*` branchに必要な変更がないことを確認し、不要なら削除する
+4. 移管により共同編集者となった旧オーナーの権限を残すか削除するか決定する
+5. `asahi26366`を残さない場合は、`googlemap`の共同編集権限と`AUTO_RUN_USERS`の両方から削除する
+6. `brightdata_ELT`のActions許可範囲をGitHub提供Actionとリポジトリ内の再利用workflowへ限定するか検討する
+
+branch protectionを追加すると、`googlemap`への結果CSV pushと`brightdata_ELT`への`files.json`更新が失敗する可能性があります。`Require a pull request`などを有効にする場合は、GitHub Actionsと`PRIVATE_REPO_PAT`の実行主体へ明示的なbypassを設定してから受入テストを行います。
+
+## 6. 実行権限
 
 自動実行できるのは次のユーザーです。
 
@@ -159,7 +206,7 @@ ActionsとIssuesの機能は必要ですが、`PRIVATE_REPO_PAT`へ`Actions`や`
 
 それ以外のユーザーのIssueはプレビューで停止し、オーナーまたは許可ユーザーによる`/承認`コメントで実行されます。
 
-## 6. GitHub Pages
+## 7. GitHub Pages
 
 `brightdata_ELT`をPrivateにする場合は、GitHub Pro、Team、Enterprise等のPrivate Pages対応プランであることを先に確認します。リポジトリがPrivateでも、通常のPagesサイト自体は公開されます。
 
@@ -172,7 +219,7 @@ ActionsとIssuesの機能は必要ですが、`PRIVATE_REPO_PAT`へ`Actions`や`
 
 WebAppに古いJavaScriptが残る場合は、スーパーリロードまたはブラウザキャッシュ削除を行います。
 
-## 7. 現在のワークフロー
+## 8. 現在のワークフロー
 
 ### WebAppの役割
 
@@ -202,7 +249,7 @@ Google Places APIはレビューのオーナー返信を返しません。返信
 
 Bright Dataの同時処理数は最大20です。Dataset逐次版のWebAppは「Bright Data同時処理数」を20件、GitHub Actionsの並列ジョブ数を1に固定しています。Issue・workflow・Pythonでは`api_batch_size × max_parallel_jobs`が20を超える設定を拒否します。SERP APIの並列数（レビュー10、施設10、関連度3）は別設定で、既存の安全な既定値を維持します。
 
-## 8. 受入テスト
+## 9. 受入テスト
 
 詳細は[`CLIENT_ACCEPTANCE_TEST_GUIDE.md`](CLIENT_ACCEPTANCE_TEST_GUIDE.md)に従います。
 
@@ -219,11 +266,11 @@ Bright Dataの同時処理数は最大20です。Dataset逐次版のWebAppは「
 
 Places版の`オーナー返信`、関連度3列、`レビュー要約`が空欄なのは正常です。列が欠落している場合は異常です。
 
-## 9. n8n・Googleログイン状態（任意）
+## 10. n8n・Googleログイン状態（任意）
 
 ローカルn8nは、Googleプロファイルの半手動作成とGoogle Maps関連度順位の抽出に使用します。どちらもCodexの使用が条件です。詳細は[`n8n_google_reviews_ops.md`](n8n_google_reviews_ops.md)を使用します。Googleログイン状態はSecret相当として扱い、リポジトリへ保存しません。
 
-## 10. 障害時の確認
+## 11. 障害時の確認
 
 | 症状 | 確認 |
 |---|---|
@@ -245,7 +292,7 @@ Places版の`オーナー返信`、関連度3列、`レビュー要約`が空欄
 
 Issue URL、Actions URL、失敗ステップ、エラー文を記録し、Secretsの値は共有しません。
 
-## 11. 移管完了条件
+## 12. 移管完了条件
 
 - `jmh8128494-cloud`が両リポジトリのオーナーになっている
 - `googlemap`はPrivateで、`brightdata_ELT`は合意した公開範囲である
@@ -256,7 +303,7 @@ Issue URL、Actions URL、失敗ステップ、エラー文を記録し、Secret
 - 初回受入対象2処理が成功し、共通15列を確認済みである
 - 受入成功後、旧オーナーのPAT・APIキーを失効している
 
-## 12. 運用開始前に決めること
+## 13. 運用開始前に決めること
 
 - `brightdata_ELT`をPublicのままにするか、対応プランとActions budgetを用意してPrivateにするか
 - Privateにする場合の月間Actions budgetと、budget到達時に停止するか課金継続するか
