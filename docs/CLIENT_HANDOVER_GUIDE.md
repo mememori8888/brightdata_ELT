@@ -35,6 +35,19 @@ Publicの標準GitHub-hosted runnerはActions実行分数が無料です。Priva
 
 旧オーナーの認証情報は、新オーナー側の受入テストが成功するまで失効させません。
 
+### `already has a repository in the ... network`で移管できない場合
+
+`jmh8128494-cloud already has a repository in the 旧オーナー/googlemap network`は、共同編集者（Collaborator）であることが原因ではありません。移管先アカウントが、`googlemap`と同じforkネットワークに属するリポジトリをすでに所有していることを示します。forkは名前を変更しても同じネットワークに残るため、renameだけでは解消しません。
+
+1. `jmh8128494-cloud`でGitHubへログインし、[所有リポジトリ一覧](https://github.com/jmh8128494-cloud?tab=repositories)を開く
+2. `Private`を含めて、`forked from 旧オーナー/googlemap`と表示されるリポジトリを探す
+3. forkに独自のcommitやbranchがある場合は、必要な変更を移管元の`googlemap`へ取り込むか、ローカルへ退避する
+4. 退避結果を確認後、`jmh8128494-cloud`が所有する対象forkの`Settings` → `General` → `Danger Zone`から削除する
+5. 数分待ってから、移管元の`googlemap`でTransfer ownershipを再実行する
+6. `jmh8128494-cloud`へ届く確認メールから24時間以内に承認する
+
+削除してよいのは`jmh8128494-cloud`側のforkです。移管元の`googlemap`を削除してはいけません。削除前にリポジトリURL、必要なbranch、未反映commitを記録します。Private forkはGitHub画面の`Leave fork network`対象外なので、forkを残す必要がある場合や対象を特定できない場合は、削除せず[GitHub Support](https://support.github.com/)へforkの切り離しを依頼します。詳細は[GitHubのリポジトリ移管条件](https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository)と[fork切り離し手順](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/detaching-a-fork)を参照してください。
+
 既存のローカルcloneを継続使用する場合は、Transfer後にremote URLを更新します。
 
 ```powershell
@@ -84,12 +97,34 @@ rg -n "$oldOwner|GITHUB_REPO = '$oldCodeRepo'|repository: $oldOwner" `
 | `GOOGLE_MAPS_STORAGE_STATE_B64` | Playwright関連度取得のGoogleログイン状態 | 手動のstate workflow使用時のみ |
 | `GEMINI_API_KEY` | AI要約 | 現在無効、不要 |
 
-`PRIVATE_REPO_PAT`は新オーナー自身がFine-grained tokenとして発行します。
+移管前に同名Secretがダミー値で用意されている場合も、そのままでは実行できません。移管完了後、新オーナーが各Secretを開いて`Update secret`から実値へ置き換えます。GitHubでは保存済みのSecret値を再表示できません。
 
-- Repository access: `jmh8128494-cloud/googlemap`
-- Repository permissions: `Contents: Read and write`
-- 有効期限: 運用ルールに合わせて設定し、期限前に更新する
-- 値を文書、Issue、Actionsログへ貼らない
+### `PRIVATE_REPO_PAT`の発行手順
+
+`PRIVATE_REPO_PAT`は、`googlemap`の移管が完了してから新オーナー自身がFine-grained personal access tokenとして発行します。移管前の`jmh8128494-cloud`はCollaboratorなので、移管前に作成したFine-grained tokenではこの用途を満たせません。
+
+1. `jmh8128494-cloud`でGitHubへログインする
+2. 右上のプロフィール画像 → `Settings` → `Developer settings`を開く
+3. `Personal access tokens` → `Fine-grained tokens` → `Generate new token`を開く
+4. `Token name`へ`brightdata-elt-googlemap`など用途が分かる名前を入力する
+5. `Expiration`へ運用上の有効期限を設定する。期限なしにはせず、更新予定日を管理する
+6. `Resource owner`で`jmh8128494-cloud`を選ぶ
+7. `Repository access`で`Only select repositories`を選び、`googlemap`だけを指定する
+8. `Repository permissions`の`Contents`を`Read and write`へ変更する
+9. ほかの権限は追加せず、`Generate token`を押す
+10. 表示されたtokenを一度だけコピーする。ページを離れると再表示できない
+
+GitHub公式の[Fine-grained token作成画面](https://github.com/settings/personal-access-tokens/new)と[Personal access token管理手順](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)も参照してください。
+
+### `PRIVATE_REPO_PAT`をActions Secretへ登録する手順
+
+1. `jmh8128494-cloud/brightdata_ELT`の`Settings` → `Secrets and variables` → `Actions`を開く
+2. `PRIVATE_REPO_PAT`がダミー値で存在する場合は、その名前を開いて`Update secret`を選ぶ。存在しない場合は`New repository secret`を選ぶ
+3. `Name`を`PRIVATE_REPO_PAT`、`Secret`を直前にコピーしたtokenとして保存する
+4. token値をIssue、文書、チャット、画面キャプチャ、Actionsログへ貼らない
+5. 有効期限前に新しいtokenを発行し、同じSecretを更新してから古いtokenを失効する
+
+このtokenの役割は、Public側の`brightdata_ELT` ActionsからPrivate側の`googlemap`をcheckoutし、結果CSVをpushすることだけです。権限は`googlemap`一つと`Contents: Read and write`に限定します。
 
 `GITHUB_TOKEN`はActionsが自動発行するため登録不要です。
 
