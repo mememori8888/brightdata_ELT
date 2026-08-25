@@ -55,7 +55,8 @@ def merge_row(existing, incoming):
 
 
 def next_review_id(rows):
-    max_id = 100
+    # 新規レビューCSVは1から、既存CSVは現在の最大IDの続きから採番する。
+    max_id = 0
     for row in rows:
         try:
             max_id = max(max_id, int((row.get("レビューID") or "").strip() or "0"))

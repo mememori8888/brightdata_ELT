@@ -61,6 +61,8 @@ WebApp → Issue opened → parse-and-route → validate-request
 
 全workflowのcheckout先と完了コメント内のPrivateリポジトリURLは、移管先の`jmh8128494-cloud/googlemap`へ変更済みです。
 
+既存出力を指定した場合は、施設GIDまたはレビューGIDで既存行と取得行を照合し、重複を除いた新規分を追加して同じパスへ保存します。新規レビュー出力はレビューIDを1、新規施設出力は施設IDを101から採番します。同じ出力CSVを複数runから同時更新してはいけません。
+
 ## 入力検証
 
 現在は次を実行前に検証します。

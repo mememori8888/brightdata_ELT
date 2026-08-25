@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.github.com https://github.com;">
-    <title>BrightData Reviews Manager</title>
+    <title>BrightData Job Manager</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,6 +12,7 @@
         <header>
             <h1>🔍 BrightData Job Manager</h1>
             <p>検索条件と入出力ファイルを選び、GitHub IssueからActionsを実行します。CSVの内容はプライベートデータリポジトリ側で編集します。</p>
+            <p class="manual-link"><a href="../USER_OPERATION_MANUAL.html" target="_blank" rel="noopener noreferrer">📘 利用者向け操作マニュアル</a></p>
         </header>
 
         <main>
@@ -54,7 +55,7 @@
                             <option value="">（設定ファイルのデフォルトを使用）</option>
                             <!-- GitHub APIから動的に読み込まれます -->
                         </select>
-                        <small id="custom_review_file_help">レビューデータの保存先ファイル名 (results/*review.csv)</small>
+                        <small id="custom_review_file_help">既存ファイルはレビューGIDで照合して新規分を追加し、新規ファイルはレビューIDを1から採番します</small>
                     </div>
                     
                     <div class="form-group" id="custom_review_file_new_container" style="display: none;">
@@ -113,7 +114,7 @@
                             <select id="sequential_output_file" required aria-required="true" aria-label="出力レビュークCSV（必須）">
                                 <option value="">選択してください</option>
                             </select>
-                            <small>レビューの保存先。既存ファイル選択または新規作成が可能です</small>
+                            <small>既存ファイルはレビューGIDで照合して新規分を追加し、新規ファイルはレビューIDを1から採番します</small>
                         </div>
 
                         <div class="form-group" id="sequential_output_file_new_container" style="display: none;">
@@ -259,7 +260,7 @@
                                 <option value="">（設定ファイルのデフォルトを使用）</option>
                                 <!-- GitHub APIから動的に読み込まれます -->
                             </select>
-                            <small>施設データの保存先ファイル名 (results/*.csv)</small>
+                            <small>既存ファイルは施設GIDで照合して新規分を追加し、新規ファイルは施設IDを101から採番します</small>
                         </div>
                         
                         <div class="form-group" id="facility_custom_facility_file_new_container" style="display: none;">
@@ -322,6 +323,7 @@
 
                     <div class="form-section">
                         <h3>📝 入出力ファイル</h3>
+                        <p class="section-description">既存の主出力はGIDで重複を除いて新規分を追加します。新規作成では施設IDは101、レビューIDは1から採番します。増分出力には今回の新規分だけを保存します。</p>
 
                         <div class="form-group">
                             <label for="places_address_csv">入力住所CSV</label>
@@ -406,6 +408,6 @@
     </div>
 
     <!-- フォーム変更時に古いJavaScriptがブラウザに残らないようバージョンを更新する -->
-    <script src="app.js?v=20260825-address-validation"></script>
+    <script src="app.js?v=20260825-user-manual"></script>
 </body>
 </html>

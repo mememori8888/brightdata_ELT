@@ -21,6 +21,8 @@
 | 除外GID CSV | 再取得しない施設 | 登録した施設GIDが出力対象から除外される |
 | 出力CSV | 結果の保存先 | 本番・テスト・業種別の保存先が変わる |
 
+既存出力と新規出力では、重複照合とID採番が変わります。詳しくは[`USER_OPERATION_MANUAL.md`](USER_OPERATION_MANUAL.md)の「出力ファイルの選び方」を参照してください。
+
 検索キーワードにある`-求人`などは、従来のGoogle検索・SERP系で除外を意図して付けている語です。ただし、[Google Places API (New)のText Search公式仕様](https://developers.google.com/maps/documentation/places/web-service/text-search)にはマイナス記号による除外条件の記載がないため、Places版での除外は保証されません。Places版では取得結果を確認し、既知の不要施設は除外GID CSVで除外してください。
 
 ## 2. 検索キーワードの書き方

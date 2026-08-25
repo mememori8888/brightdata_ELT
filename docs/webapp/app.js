@@ -134,7 +134,7 @@ const PRESETS = {
     facility: {
         'dental_full': {
             name: '🦷 歯科医院・全国取得',
-            description: '全国の住所から歯科医院を検索（1973行 × 1req = 1973req）',
+            description: '住所CSVの全行から歯科医院を検索（行数とページ数に応じてAPIリクエストが増加）',
             params: {
                 facility_custom_query: '歯科医院',
                 facility_custom_address_csv: 'settings/address.csv',

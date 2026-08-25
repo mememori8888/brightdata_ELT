@@ -9,6 +9,8 @@ n8nは次の2機能だけに使用します。
 
 どちらも**Codexを開いた状態で、Codexの案内と確認を受けながら実行することが条件**です。お客様がn8nだけを単独操作する運用は対象外です。
 
+WebAppの日常操作、既存／新規出力、ID採番については[`USER_OPERATION_MANUAL.md`](USER_OPERATION_MANUAL.md)を先に確認してください。
+
 ## 1. 構成
 
 ```text

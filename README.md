@@ -30,6 +30,7 @@ Google Places APIはオーナー返信を提供しません。返信が必要な
 - `reviews_BrightData_50.py`: SERPレビュー取得（SERP再開用に保持）
 - `.github/workflows/issue-ops-universal.yml`: Issueの検証・権限判定・処理分岐
 - `docs/webapp/`: GitHub Pages用WebApp
+- `docs/USER_OPERATION_MANUAL.md`: 日常操作、入出力、重複排除、ID採番の利用者向け正本
 - `docs/CLIENT_ACCEPTANCE_TEST_GUIDE.md`: お客様側の受入テスト
 - `docs/CLIENT_HANDOVER_GUIDE.md`: 運用開始・移管手順
 - `docs/ADDRESS_CSV_GUIDE.md`: 住所CSV・検索キーワード・不正テンプレートの説明

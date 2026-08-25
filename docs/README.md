@@ -4,6 +4,8 @@
 
 ## 現在のドキュメント
 
+- [`USER_OPERATION_MANUAL.md`](USER_OPERATION_MANUAL.md): 日常操作、入力項目、既存／新規出力、重複排除、ID採番
+- [`ADDRESS_CSV_GUIDE.md`](ADDRESS_CSV_GUIDE.md): 住所CSV、検索キーワード、テンプレートエラー
 - [`CLIENT_ACCEPTANCE_TEST_GUIDE.md`](CLIENT_ACCEPTANCE_TEST_GUIDE.md): お客様側のWebApp受入テスト
 - [`CLIENT_HANDOVER_GUIDE.md`](CLIENT_HANDOVER_GUIDE.md): 運用開始、権限、Secrets、所有権移転
 - [`issueオーケストレーション.md`](issueオーケストレーション.md): IssueからActionsへ分岐する現在の仕様
@@ -12,4 +14,4 @@
 - [`SERP_API_REACTIVATION_GUIDE.md`](SERP_API_REACTIVATION_GUIDE.md): SERP API再開時の確認と段階テスト
 - [`../README.md`](../README.md): システム概要と現在使用する処理
 
-日付付きの旧作業報告と重複したロードマップは削除済みです。操作方法や現在の状態は上の文書を正本として判断します。
+日常操作は`USER_OPERATION_MANUAL.md`を入口にし、初回受入・移管・SERP再開・n8nなど目的別の詳細は各文書を参照してください。日付付きの旧作業報告と重複したロードマップは削除済みです。

@@ -113,6 +113,8 @@ class ReviewSchemaTests(unittest.TestCase):
                     reader = csv.DictReader(stream)
                     rows = list(reader)
                 self.assertEqual(reader.fieldnames, REVIEW_FIELDNAMES)
+                self.assertEqual(rows[0]["レビューID"], "1")
+                self.assertEqual(rows[0]["施設ID"], "101")
                 self.assertEqual(rows[0]["オーナー返信"], "")
                 self.assertEqual(rows[0]["レビュー取得ソート"], PLACES_REVIEW_SORT_LABEL)
                 self.assertEqual(rows[0]["レビュー日時"], "2026-08-23T22:08:22.777Z")

@@ -37,6 +37,16 @@ header p {
     opacity: 0.9;
 }
 
+.manual-link {
+    margin-top: 12px;
+}
+
+.manual-link a {
+    color: white;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
 main {
     padding: 40px;
 }

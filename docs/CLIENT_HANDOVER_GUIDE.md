@@ -54,7 +54,7 @@ git remote -v
 | `.github/workflows/*.yml` | `repository: jmh8128494-cloud/googlemap` |
 | `issue-ops-universal.yml`の完了リンク | `https://github.com/jmh8128494-cloud/googlemap` |
 | PythonのGitHub ownerフォールバック | `jmh8128494-cloud` |
-| WebAppキャッシュ識別子 | `app.js?v=20260825-concurrency-20` |
+| WebAppキャッシュ識別子 | `app.js?v=20260825-user-manual` |
 
 移管前の固定値が現行ファイルに残っていないことを確認するコマンド:
 
@@ -140,6 +140,8 @@ WebAppはAPIをブラウザ内で直接実行したり、CSVの中身を編集�
 
 施設検索では、住所CSVの各行と検索キーワードを結合します。例えば`北海道,札幌市`と`歯科医院`を選ぶと、`北海道 札幌市 歯科医院`として検索します。検索キーワードは`settings/*.json`の`query`へ主業種を1つ記入し、住所は含めません。キーワードの良い例・避ける例、住所CSVの作成方法、検索範囲と費用の関係、不正テンプレートのエラー例は[`ADDRESS_CSV_GUIDE.md`](ADDRESS_CSV_GUIDE.md)を参照してください。
 
+既存出力を選ぶと、施設GID・レビューGIDで照合して重複を除き、新規分を既存IDの続きで追加します。新規出力ではレビューIDを1、施設IDを101から採番します。日常操作、主出力と増分出力の違い、同時実行の禁止事項は[`USER_OPERATION_MANUAL.md`](USER_OPERATION_MANUAL.md)を正本とします。
+
 | WebAppグループ | WebApp表示 | Issueコマンド | データソース | 初回受入 |
 |---|---|---|---|---|
 | 現在の運用 | 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) | 実施する |
@@ -192,6 +194,8 @@ Places版の`オーナー返信`、関連度3列、`レビュー要約`が空欄
 | `住所CSVのヘッダーが不正です` | 1行目を`都道府県,市区町村,町域`形式に修正 |
 | `都道府県が不正です` | 1列目を`北海道`・`東京都`など正式名称に修正 |
 | `住所CSVはUTF-8で保存してください` | Excel等でCSV UTF-8として保存し直す |
+| 新規レビューCSVのIDが1から始まらない | 同名ファイルがすでに存在し、既存ファイルとして更新されていないか確認 |
+| 既存CSVでGID重複が増えた | GIDの空欄・変更、同一出力への同時実行、古いコード版を確認 |
 
 Issue URL、Actions URL、失敗ステップ、エラー文を記録し、Secretsの値は共有しません。
 

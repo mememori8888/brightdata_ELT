@@ -450,13 +450,14 @@ def load_existing_reviews(review_file_path):
             print(f'✅ 新規ファイルを作成しました: {review_file_path}')
         except Exception as e:
             print(f'❌ ファイル作成に失敗: {e}')
-            return [], set(), 100
+            return [], set(), 0
         
-        return [], set(), 100
+        return [], set(), 0
     
     reviews = []
     gid_set = set()
-    max_review_id = 100
+    # 新規レビューCSVはレビューIDを1から採番する。
+    max_review_id = 0
     
     with open(review_file_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)

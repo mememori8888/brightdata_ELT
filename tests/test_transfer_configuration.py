@@ -17,7 +17,7 @@ class TransferConfigurationTests(unittest.TestCase):
         self.assertIn(f"const GITHUB_OWNER = '{TARGET_OWNER}';", app)
         self.assertIn(f"const GITHUB_REPO = '{TARGET_CODE_REPOSITORY}';", app)
         self.assertIn("const DATA_REPO = 'googlemap';", app)
-        self.assertIn("app.js?v=20260825-address-validation", html)
+        self.assertIn("app.js?v=20260825-user-manual", html)
 
     def test_every_googlemap_checkout_targets_the_new_owner(self):
         checkout_references = []

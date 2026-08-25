@@ -705,20 +705,21 @@ def load_existing_reviews():
             logging.info(f'新規ファイルを作成しました: {OUTPUT_CSV}')
         except Exception as e:
             logging.error(f'ファイル作成に失敗: {e}')
-            return [], set(), 100
+            return [], set(), 0
         
-        return [], set(), 100
+        return [], set(), 0
     
     reviews = []
     gid_set = set()
-    max_review_id = 100
+    # 新規レビューCSVはレビューIDを1から採番する。
+    max_review_id = 0
     
     # ▼▼▼ 修正箇所：安全な読み込み関数を使用 ▼▼▼
     try:
         all_rows, fieldnames = safe_read_csv(OUTPUT_CSV)
     except ValueError as e:
         logging.error(f'❌ 既存レビューCSV読み込みエラー: {e}')
-        return [], set(), 100
+        return [], set(), 0
         
     has_facility_gid = '施設GID' in fieldnames if fieldnames else False
     if not has_facility_gid:
