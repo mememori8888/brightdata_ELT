@@ -10,6 +10,8 @@ import sys
 import time
 import re
 import requests
+
+from review_schema import REVIEW_FIELDNAMES
 import logging
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -59,10 +61,6 @@ BATCH_SIZE = int(os.getenv('BATCH_SIZE', '100'))  # API 1回あたりの処理�
 MAX_WAIT_MINUTES = int(os.getenv('MAX_WAIT_MINUTES', '60'))  # スナップショット待機時間
 APPLIED_REVIEW_SORT = 'qualityScore'  # Dataset API default; sort input is rejected by this dataset.
 ALLOW_PARTIAL_FAILURE = os.getenv('ALLOW_PARTIAL_FAILURE', 'false').lower() in ('1', 'true', 'yes')
-REVIEW_FIELDNAMES = ['レビューID', '施設ID', '施設GID', 'レビュワー評価', 'レビュワー名',
-                     'レビュー日時', 'レビュー本文', 'オーナー返信', 'レビュー表示順位',
-                     'レビュー取得ソート', '関連度ランク', '関連度取得ソート', '関連度取得日時',
-                     'レビュー要約', 'レビューGID']
 
 
 def format_review_sort_label(sort_value: str) -> str:

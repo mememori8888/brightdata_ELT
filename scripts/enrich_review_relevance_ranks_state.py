@@ -22,24 +22,13 @@ from urllib.parse import parse_qsl, quote_plus, unquote, urlencode, urlparse, ur
 from playwright.async_api import Browser, BrowserContext, Page, TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
 
-FIELDNAMES = [
-    "レビューID",
-    "施設ID",
-    "施設GID",
-    "レビュワー評価",
-    "レビュワー名",
-    "レビュー日時",
-    "レビュー本文",
-    "オーナー返信",
-    "レビュー表示順位",
-    "レビュー取得ソート",
-    "関連度ランク",
-    "関連度取得ソート",
-    "関連度取得日時",
-    "レビュー要約",
-    "レビューGID",
-]
+from review_schema import REVIEW_FIELDNAMES
+
+FIELDNAMES = REVIEW_FIELDNAMES
 
 RELEVANCE_COLUMNS = [
     "関連度ランク",

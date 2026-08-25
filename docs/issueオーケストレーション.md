@@ -1,125 +1,83 @@
-# Issue オーケストレーション機能レポート
+# Issueオーケストレーション仕様
 
-## 1. 概要
-このレポートは、Issue を起点にデータ処理ジョブを承認実行する仕組み（issue-ops-universal）を整理したものです。
+更新日: 2026-08-25
 
-対象ワークフロー:
-- .github/workflows/issue-ops-universal.yml
+## 概要
 
-この仕組みは、次の運用フローを実現します。
-- webapp → issue 作成
-- issue 本文のコマンド解析
-- 概算コスト提示
-- 許可ユーザーは承認省略、それ以外は管理者承認
-- GitHub Actions 実行
-- データ出力と結果通知
+`.github/workflows/issue-ops-universal.yml`は、WebAppが作成したIssueを検証し、権限とコマンドに応じて再利用ワークフローへ処理を振り分けます。
 
-## 2. 起動条件と実行方式
-### 起動イベント
-- issues: opened
-- issue_comment: created
+```text
+WebApp → Issue opened → parse-and-route → validate-request
+                                      ↓
+                              対象ワークフロー
+                                      ↓
+                        report-completion → Issue close
+```
 
-### 実行方式の特徴
-- Actions 画面の手動実行（workflow_dispatch）ではない
-- Issue 本文とコメントを API 的に扱うイベント駆動方式
-- ワークフロー名が「実行不可」でも、Issue イベントでは実行される
+## 対応コマンドと現在の運用状態
 
-## 3. 対応コマンド
-Issue 本文で受け付けるコマンド:
-- /run-reviews
-- /run-facility
+| コマンド | 内部workflow値 | 呼出先 | 状態 |
+|---|---|---|---|
+| `/run-facility-places` | `facility_places` | `main_places_api.yml` | 使用する |
+| `/run-reviews-sequential` | `reviews_sequential` | `reviews_local_interactive_sequential.yml` | 使用する |
+| `/run-reviews` | `reviews` | `brightdata_reviews.yml` | SERP API利用不可 |
+| `/run-facility` | `facility` | `brightdata_facility.yml`相当処理 | SERP API利用不可 |
+| `/run-reviews-relevance` | `reviews_recent_relevance` | `reviews_recent_with_relevance.yml` | SERP API利用不可 |
 
-承認コメント:
-- /承認
+将来のSERP API再開に備え、ルーティング定義とWebAppの選択肢は残しています。現在の受入テストではSERP依存の3処理を選択しません。
 
-## 4. 実行シーケンス
-1. Issue 作成時
-- 本文から実行対象を判定
-- 実行パラメータ（json ブロック）を抽出
-- オーナーまたは許可リストユーザーなら should_run=true
-- その他のユーザーは should_run=preview で見積もりモードに入る
+## 起動と権限
 
-2. プレビューコメント
-- 予想リクエスト数
-- 予想コスト
-- 内訳
-- 管理者へ承認依頼
+起動イベント:
 
-許可ユーザーのIssueでは、このプレビュー・承認待ちを行わず実行へ進む。
+- `issues: opened`
+- `issue_comment: created`
 
-3. 承認処理
-- issue_comment で /承認 を検知
-- 実行者が OWNER または `jmh8128494-cloud`、`asahi26366` なら should_run=true
-- 未権限は should_run=false で停止
+自動実行対象:
 
-4. ジョブ分岐実行
-- reviews: 再利用ワークフロー brightdata_reviews.yml 呼び出し
-- facility: Python 実行で施設データ更新
+- リポジトリオーナー
+- `.github/workflows/issue-ops-universal.yml`の`AUTO_RUN_USERS`
+- 現在の許可リスト: `jmh8128494-cloud,asahi26366`
 
-5. 完了報告
-- 成功時: 出力ファイルリンクをコメント
-- 失敗時: Actions ログ案内コメント
-- 成功時は Issue をクローズ
+対象外ユーザーのIssueは見積もりプレビューで停止します。オーナーまたは許可ユーザーによる`/承認`コメントで実行できます。対象外ユーザー自身の`/承認`では実行されません。
 
-## 5. 出力とコミット
-主な出力先:
-- results 配下 csv
-- settings/settings.json
-- docs/webapp/files.json（generate_heatmap 系）
+## 実行シーケンス
 
-コミット方針:
-- 差分がある場合のみコミット
-- origin main に push
+1. Issue本文からコマンドとJSONブロックを抽出する
+2. 作成者または承認者の権限を判定する
+3. `validate-request`で必須キー、パス、Privateリポジトリ上の入力ファイルを検証する
+4. 対象ワークフローだけを実行する
+5. 成功時は出力リンクをコメントしてIssueを閉じる
+6. 失敗・キャンセル時はActionsログのリンクをコメントする
 
-## 6. 現状の既知課題
-リポジトリ確認時点で、次の参照スクリプトが未配置です。
-- apply_custom_settings.py
-- search_optimizer.py
+選択していないジョブが`skipped`になるのは正常です。
 
-影響:
-- run-facility / run-facility-heatmap の設定反映ステップが失敗し得る
-- run-generate-heatmap の生成ステップが失敗し得る
+## データの読書き
 
-## 7. フェイルセーフ / フールプルーフ観点の評価
-現状で良い点:
-- 承認フローがあり誤実行を抑制
-- 概算コストの事前提示
-- 権限チェックで実行制御
+- コード: Publicコードリポジトリ
+- 設定・入力・結果: `mememori8888/googlemap`
+- 認証: `PRIVATE_REPO_PAT`
+- 主な結果: `googlemap/results/*.csv`
 
-不足している点:
-- 依存スクリプト存在チェックが実行前にない
-- json パラメータ形式不正時の明確なエラーメッセージが弱い
-- ジョブごとの入力必須項目バリデーションが十分ではない
-- 失敗時リカバリ手順の定型コメントがない
+所有権移転時は、全workflowの`repository: mememori8888/googlemap`と、完了コメント内のPrivateリポジトリURLを移管先へ変更します。
 
-## 8. 改善提案（優先順）
-1. 事前バリデーションジョブ追加
-- 必須ファイル存在
-- 必須パラメータ
-- json 構文
-- 不正時は実行せず Issue に理由を返信
+## 入力検証
 
-2. コマンド契約の明文化
-- 各 /run-xxx の必須キー・任意キー・デフォルト値を docs に明記
+現在は次を実行前に検証します。
 
-3. 実行可否の明示
-- should_run=false 時に必ず理由コメント
+- Issue JSONの構文
+- workflowごとの必須パラメータ
+- 許可された`settings/*.json`、`settings/*.csv`、`results/*.csv`形式のパス
+- `..`や想定外ディレクトリを含むパスの拒否
+- Privateリポジトリ内の設定・入力ファイルの存在
+- 対象ラッパースクリプトの存在
 
-4. 失敗時の案内強化
-- 失敗ジョブ名
-- 想定原因
-- 次に確認すべきファイル
+## 障害時の確認順
 
-5. 競合対策
-- 同一 Issue の重複承認を防止する簡易ロック導入
+1. `parse-and-route`: コマンド、JSON、権限
+2. `validate-request`: 必須値、パス、入力ファイル
+3. 対象ジョブ: API認証、API応答、スナップショット
+4. 保存ステップ: PAT、Privateリポジトリ権限、push競合
+5. `report-completion`: Issueへの書込み権限
 
-## 9. 運用ガイド（最小）
-1. webapp から Issue を作成（本文に /run-xxx と json）
-2. 許可ユーザーはそのまま実行、その他のユーザーはBotの見積もりコメントを確認
-3. その他のユーザーの場合、管理者または許可ユーザーが /承認 コメント
-4. 完了コメントの出力リンクを確認
-5. 必要なら Issue を再オープンして再実行
-
-## 10. まとめ
-issue-ops-universal は、Issue ベースで実行要求を受け、承認後に処理を振り分けるオーケストレーターです。
-運用設計としては実用的ですが、依存ファイルの事前検証と入力バリデーションを追加すると、フェイルセーフ性とフールプルーフ性が大きく向上します。
+同じIssueを重複承認したり、複数のデータ更新処理を同時実行したりしないでください。

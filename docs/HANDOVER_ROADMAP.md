@@ -2,6 +2,20 @@
 
 更新日: 2026-08-25
 
+> この文書は判断経緯を残す社内向け履歴です。現在の実行対象、受入条件、移管手順は`CLIENT_ACCEPTANCE_TEST_GUIDE.md`と`CLIENT_HANDOVER_GUIDE.md`を正本とします。日付付きの古い記録は、その時点の状態を示すもので、現在の操作手順ではありません。
+
+## 2026-08-25 現在の運用判定
+
+| 処理 | 状態 |
+|---|---|
+| Google Places API施設・レビュー `/run-facility-places` | 使用する |
+| Bright Data Dataset逐次レビュー `/run-reviews-sequential` | 使用する |
+| SERPレビュー `/run-reviews` | SERP API利用不可のため使用しない |
+| SERP施設 `/run-facility` | SERP API利用不可のため使用しない |
+| Dataset + SERP関連度 `/run-reviews-relevance` | SERP API利用不可のため使用しない |
+
+最新の検証済みコードとPagesは`demo`にあり、`brightdata_ELT`は2026-08-23時点のため、移管に使う場合は最新版同期とPages設定が必要です。レビューCSVは3取得処理とも共通15列へ統一済みです。Google Places APIが返さない`オーナー返信`・関連度3列・`レビュー要約`は、列を保持したまま空欄で出力します。
+
 ## 目的
 
 受領者が、開発者の環境や認証情報に依存せず、システムの設定・実行・結果確認・障害対応・軽微な修正を自分で行える状態にする。
@@ -20,14 +34,14 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API / Google Places A
 
 | 項目 | 現状 | 判定 |
 |---|---|---|
-| Pythonコード・GitHub Actions | Google Places API版でAPIレスポンス取得まで確認 | 本体処理の完了テストが必要 |
-| WebappからIssueを作成 | Issue #22でプリセット・入出力JSONを生成済み | Test A完了 |
+| Pythonコード・GitHub Actions | Google Places API版とDataset逐次版の実行完了を確認 | 受入対象2経路を確認済み |
+| WebappからIssueを作成 | Issue #23・#27で入出力から保存まで確認 | 開発側テスト完了 |
 | コード・設定・データの分離 | `demo`と`googlemap`に分散 | 1つの非公開リポジトリへ統合 |
 | Bright Data接続 | 過去に成功記録あり | 受領者アカウントで再確認 |
 | 最新のレビュー処理 | 2026-08-11に一部チャンク失敗 | 原因確認または既知問題として合意 |
-| 依存スクリプト | 未配置の記録あり | 本番対象を確定し、修正または除外 |
-| 新仕様Web Scraper API | ラッパーと実行ファイルあり | 非対話実行を検証 |
-| 運用手順・障害対応 | 資料が分散 | 本書と手順書に集約 |
+| 依存スクリプト | 受入対象2経路を実行前検証 | 対象外の旧機能と分離済み |
+| 新仕様Web Scraper API | Dataset逐次版で実データ保存まで確認 | 利用可能 |
+| 運用手順・障害対応 | クライアント向け2文書へ集約 | 更新済み |
 
 ## 方針変更（2026-08-23）: brightdata_ELTをPublicリポジトリにする
 
@@ -164,16 +178,16 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API / Google Places A
 - `.github/workflows/issue-ops-universal.yml`: コマンド検出（`/run-facility`より先に判定）、必須ファイル検証、`config_file`存在チェック、`run-facility-places`ジョブ（`main_places_api.yml`をworkflow_call）、完了報告への統合
 - `docs/webapp/index.html`・`docs/webapp/app.js`: ワークフロー選択肢・専用フォーム・Issue本文生成を追加。2026-08-25に設定プリセット化し、検索キーワード、住所CSV、除外GID、施設・レビュー・増分出力をプルダウンから選択可能にした。`includedType` はWebApp入力から除外し、Issue本文から管理者承認の案内を削除した
 - `get_reviews_from_dental_new.py`: 逐次レビュー取得で正常な0件応答を成功として扱い、通信・スナップショット失敗だけをActionsエラーにするよう修正した
-- `main.py`のレビュー処理には、開発者自身が残した`#ここがおかしいよ`という未解決の既知課題（既存レビューの更新ロジックが不完全）がある。今回は組み込みのみ行い、このロジック自体は未修正
+- `main.py`の既存レビューはレビューGIDで重複を除外する。2026-08-25に出力列を共通15列へ統一し、旧9列・旧12列も不足列を空欄で補うよう修正した
 - `care_*.json`も`settings/settings.json`と同じタスクリスト形式であることを確認。2026-08-25のIssue #22で`settings/care_group-home_test.json`の読み込み、検証、`main.py`実行開始まで実機確認した
 
-### Google Places APIにオーナー返信データが存在しないことの確認（2026-08-23）
+### Google Places APIにオーナー返信データが存在しないことの確認（2026-08-25更新）
 
 - `scripts/diagnose_places_api_review_fields.py`を作成し、実際のPlaces API (New) レスポンスの`reviews`配列のキー一覧を実データで確認した
 - 確認の結果、オーナー（施設側）の返信を示すフィールドは**存在しなかった**
 - これはGoogle Places APIの仕様上の制限であり、`main.py`の実装不備ではない
 - `results/dental_reviews.csv`等にある`オーナー返信`列は、Bright Data（実ページを解析するWeb Scraper API）でのみ取得可能。Google Places API経由（`/run-facility-places`）で新規追加される行は、この列が常に空欄になる
-- 運用方針: オーナー返信が必要な場合は、引き続きBright Data経由（`/run-reviews`系）で取得する。`/run-facility-places`（Google Places API）は、オーナー返信を含まない前提の、低コストな施設・レビュー基本情報取得と位置づける
+- 運用方針: オーナー返信が必要な場合は、Bright Data Dataset経由の`/run-reviews-sequential`で取得する。SERP APIの`/run-reviews`は現在利用しない。`/run-facility-places`では`オーナー返信`列を空欄で保持する
 
 ### 施設ファイルの緯度・経度 列名ゆれの修正（2026-08-23）
 
@@ -184,15 +198,15 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API / Google Places A
   - 書き込み前: 新規行（Places API由来）の`緯度`/`経度`から`latitude`/`longitude`を補完（既存値は上書きしない）
 - ローカルでの簡易検証により、新旧どちらの行も4列すべてに値が入ることを確認した
 
-### main.py出力列の全項目確認（2026-08-23）
+### main.py出力列の全項目確認（2026-08-25更新）
 
 `main.py`が出力する全列と、Google Places APIからの実際の値の埋まり方を突き合わせて確認した。
 
-- **常に空欄になる列（仕様上の制限、対応不要と判断）**: `営業ステータス`（コード上ハードコードされた空文字）、`オーナー返信`（Places APIに存在しない）、`関連度ランク`・`関連度取得ソート`・`関連度取得日時`（Bright Data側の関連度処理専用列）
-- **常に`#N/A`になる列（コードが存在しないフィールドを参照）**: `レビュー要約`（`param['summary']`という、Places APIのレビューオブジェクトに存在しないキーを参照している）
-  - 対応方針（2026-08-23決定）: **修正せず、`#N/A`のまま残す**
-- **課金されるが未使用のフィールド**: `places.reviewSummary`（施設単位のAI要約）をフィールドマスクで要求しているが、コード内で一切読み取っていない
-  - 対応方針（2026-08-23決定）: **動作に問題がないため、そのまま残す**（フィールドマスクからの削除は行わない）
+- レビュー出力はDataset・Places・SERPで同じ15列を`review_schema.py`から参照する
+- Places APIに存在しない`オーナー返信`、関連度3列、レビュー要約は`#N/A`ではなく空欄にする
+- `レビュー表示順位`はPlaces APIの返却順、`レビュー取得ソート`は`関連度順（Google Places API）`とする
+- `レビュー日時`は変換せずAPIのISO日時を保持する
+- 未使用で追加課金につながる`places.reviewSummary`はフィールドマスクから削除した
 
 ### 旧オーナー（開発者）側の失効手順（順序厳守）
 
@@ -304,11 +318,11 @@ brightdata_ELT/
 
 - 引き渡すリポジトリを確定する: `demo`、`googlemap`
 - 本番対象の処理を確定する
-  - SERP APIによる施設取得
-  - SERP APIによるレビュー取得
+  - Google Places APIによる施設・基本レビュー取得
   - Web Scraper APIによるレビュー取得
-  - 関連度処理・ヒートマップ処理
 - 対象外の処理を明記する
+  - SERP APIによる施設・レビュー・関連度取得
+  - ヒートマップ処理
   - 廃止予定のn8nワークフロー
   - 無効化されているGemini関連機能
   - 未使用の旧スクリプト

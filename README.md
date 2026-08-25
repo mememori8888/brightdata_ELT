@@ -1,41 +1,38 @@
-## 🚀 Powered by Bright Data (ブライトデータとは？)
+# Google Maps 施設・レビューデータ取得
 
-> **「世界最大級のWebデータ収集インフラストラクチャ」**
+WebAppからGitHub Issueを作成し、GitHub Actions経由で施設・レビューCSVをPrivateデータリポジトリへ保存するシステムです。
 
-本プロジェクトの自動化・高精度なデータ抽出の裏側を支えるコア・テクノロジーです。
-Bright Dataは、世界中の企業が利用するデータ収集プラットフォームであり、Webスクレイピングにおける最大の壁である「IPブロック」や「CAPTCHA（ロボット認証）」を突破し、あらゆる公開データを安定して取得可能にします。
+## 現在使用するワークフロー
 
-本ツールがクラウドソーシングのタスクにおいて、人間の手作業を圧倒する成果を出せるのは、以下のBright Dataの強力なインフラがあるためです。
+| WebApp表示 | コマンド | データソース |
+|---|---|---|
+| 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) |
+| レビュー取得・新仕様逐次実行 | `/run-reviews-sequential` | Bright Data Dataset / Web Scraper API |
 
-* 🛡️ **最強のブロック回避:** 世界最大規模のプロキシネットワークとWeb Unlockerにより、ターゲットサイトからのアクセス拒否を未然に防ぎます。
-* 🧩 **AI (LLM) 向けに最適化されたツール群:** AIが自律的にブラウザを操作できる環境（Scraping Browser等）が揃っており、LLMのエージェント化（MCP連携）と非常に相性が良いです。
+Bright DataのSERP APIは現在利用できないため、`/run-reviews`、`/run-facility`、`/run-reviews-relevance`は運用対象外です。
 
----
+Google Places APIはオーナー返信を提供しません。返信が必要なレビュー取得にはDataset逐次版を使用します。すべてのレビューCSVは[`review_schema.py`](review_schema.py)の共通15列で出力します。
 
-## 🧠 コア技術: 2つのデータ収集エンジン
+## リポジトリ構成
 
-本ツールでは、上記のBright Dataのインフラストラクチャ上で動く、**2つの強力なデータ取得アプローチ**をタスク要件に合わせて自動で使い分け、圧倒的な精度とスピードを実現しています。
+- このリポジトリ: Pythonコード、GitHub Actions、WebApp、ドキュメント
+- `mememori8888/googlemap`（Private）: 設定、入力CSV、結果CSV
 
----
+主なファイル:
 
-### 🌐 1. SERP API (Search Engine Results)
-> **「広大なネットの海から、瞬時にアタリをつけるレーダー」**
+- `main.py`: Google Places API版
+- `get_reviews_from_dental_new.py`: Bright Data Datasetレビュー取得
+- `reviews_BrightData_50.py`: SERPレビュー取得（現在利用不可、互換性維持）
+- `.github/workflows/issue-ops-universal.yml`: Issueの検証・権限判定・処理分岐
+- `docs/webapp/`: GitHub Pages用WebApp
+- `docs/CLIENT_ACCEPTANCE_TEST_GUIDE.md`: お客様側の受入テスト
+- `docs/CLIENT_HANDOVER_GUIDE.md`: 運用開始・移管手順
 
-Googleなどの検索結果を直接プログラムで解析するAPIです。対象の企業サイトに直接アクセスしないため、ブロックされるリスクが極めて低く、超高速に処理できるのが最大の強みです。
+## ローカルテスト
 
-* **🎯 得意なこと:** 企業名からの「公式サイトURL」や「問い合わせページURL」の特定
-* **⚡️ メリット:** 高速、低コスト、CAPTCHA等のアクセスブロックを完全回避
-* **💡 活用シーン:** 検索結果のタイトルやスニペット（説明文）から、代表者名などの基本情報をサクッと抽出するフェーズで活躍します。
+```powershell
+$env:PYTHONIOENCODING='utf-8'
+python -m unittest discover -s tests -v
+```
 
-### 🕵️‍♂️ 2. Deep Lookup (by Bright Data)
-> **「URLを起点に、隠れた情報を芋づる式に掘り起こすドリル」**
-
-特定のドメイン（URL）や企業名をキーにして、Web上のあらゆるソースを自律的に横断・解析する強力なデータエンリッチメント機能です。
-
-* **🎯 得意なこと:** サイトの奥深くに眠る「電話番号」「メールアドレス」「公式SNS」などの抽出
-* **⚡️ メリット:** 単純なスクレイピングでは見落としがちな、複数ページに散らばったコンタクト情報の高精度な収集
-*
-
-該当サービスについてはこちら>https://get.brightdata.com/mam10
-
-別途サービス利用料金がかかります。
+実APIを呼ぶ受入テストは、API費用とPrivateデータ更新を伴います。クライアント向け手順書に従い、1処理ずつ小規模に実行してください。

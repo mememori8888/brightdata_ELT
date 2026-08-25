@@ -16,7 +16,62 @@ import random
 from math import ceil
 import random
 
+from review_schema import PLACES_REVIEW_SORT_LABEL, REVIEW_FIELDNAMES
+
 randomC = random.uniform(1,5)
+
+FACILITY_FIELDNAMES = [
+    '施設ID', '施設名', '電話番号', '郵便番号', '都道府県', '市区町村', '住所',
+    'web', 'GoogleMap', 'ランク', 'カテゴリ', '緯度', '経度', '施設GID', '営業ステータス'
+]
+REVIEW_UPDATE_FIELDNAMES = [
+    'レビューID', '施設GID_レビュー', *REVIEW_FIELDNAMES[3:]
+]
+UPDATE_FIELDNAMES = [*FACILITY_FIELDNAMES, *REVIEW_UPDATE_FIELDNAMES]
+
+
+def normalize_review_dataframe(dataframe):
+    """Add missing review columns and return the canonical 15-column order."""
+    normalized = dataframe.copy()
+    for column in REVIEW_FIELDNAMES:
+        if column not in normalized.columns:
+            normalized[column] = ''
+    return normalized.loc[:, REVIEW_FIELDNAMES]
+
+
+def build_places_review_row(review, assigned_review_id, facility_id, facility_gid, display_order):
+    """Convert one Places API review to the shared review CSV schema.
+
+    Places API (New) does not return owner replies or the separate relevance
+    enrichment fields. Those columns remain blank so that downstream CSV
+    consumers can use the same schema as the Bright Data Dataset workflow.
+    """
+    review_name = str(review.get('name') or '')
+    review_gid_match = re.search(r"/([^/]+)$", review_name)
+    review_gid = review_gid_match.group(1) if review_gid_match else review_name
+
+    text = review.get('text') or review.get('originalText') or {}
+    if isinstance(text, dict):
+        text = text.get('text', '')
+
+    author = review.get('authorAttribution') or {}
+    return {
+        'レビューID': assigned_review_id,
+        '施設ID': facility_id,
+        '施設GID': facility_gid,
+        'レビュワー評価': review.get('rating', ''),
+        'レビュワー名': author.get('displayName', ''),
+        'レビュー日時': review.get('publishTime', ''),
+        'レビュー本文': text,
+        'オーナー返信': '',
+        'レビュー表示順位': display_order,
+        'レビュー取得ソート': PLACES_REVIEW_SORT_LABEL,
+        '関連度ランク': '',
+        '関連度取得ソート': '',
+        '関連度取得日時': '',
+        'レビュー要約': '',
+        'レビューGID': review_gid,
+    }
 
 def extract_api_key_from_json(file_path):
     """
@@ -185,6 +240,7 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
     # 既存のハンドラーをクリア（複数回実行時の重複を防止）
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
+        handler.close()
     
     # ログファイルを初期化（上書きモード）
     logging.basicConfig(filename=log_file_path, filemode='w', level=logging.DEBUG,
@@ -214,8 +270,7 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
               "places.reviews",
               "places.userRatingCount",
               "places.regularOpeningHours",
-              "places.regularSecondaryOpeningHours",
-              "places.reviewSummary"
+              "places.regularSecondaryOpeningHours"
              ])
 
     # 他のパラメータを追加
@@ -288,26 +343,17 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
             review_df = pd.concat([review_df, param])
         print(f"既存のレビュー情報ファイル '{review_file}' を読み込みました。")
         
-        # 施設GID列がない場合は空列として追加（後方互換性）
-        if '施設GID' not in review_df.columns:
-            print("既存レビューファイルに施設GID列がありません。空列として追加します。")
-            # 施設IDの後に施設GIDを挿入
-            cols = review_df.columns.tolist()
-            if '施設ID' in cols:
-                facility_id_idx = cols.index('施設ID')
-                cols.insert(facility_id_idx + 1, '施設GID')
-                review_df['施設GID'] = ''
-                review_df = review_df[cols]
-            else:
-                review_df['施設GID'] = ''
     else:
         print(f"レビュー情報ファイル '{review_file}' が存在しないか空です。新しく作成します。")
         # 新しいファイルを作成し、空のDataFrameを初期化
-        review_df = pd.DataFrame(columns=['レビューID','施設ID', '施設GID', 'レビュワー評価', 'レビュワー名', 'レビュー日時', 'レビュー本文', 'レビュー要約', 'レビューGID'])
+        review_df = pd.DataFrame(columns=REVIEW_FIELDNAMES)
+
+    # 旧9列・旧12列のファイルも不足列を空欄で補い、全取得経路と同じ15列へ揃える。
+    review_df = normalize_review_dataframe(review_df)
 
     # レビューがありませんを除外
     try:
-        new_review_df = review_df[~review_df['レビューID'].str.contains('レビューがありません')]
+        new_review_df = review_df[~review_df['レビューID'].astype(str).str.contains('レビューがありません', na=False)]
     except:
         new_review_df = review_df
     # 最後のレビューIDを取得
@@ -322,7 +368,7 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
 
     # 既存のGIDとIDの対応を高速に検索できるように準備
     existing_gids = set(facility_df['施設GID'])
-    existing_review_gids = set(review_df['レビューGID'])
+    existing_review_gids = set(review_df['レビューGID'].dropna().astype(str))
     gid_to_id_map = facility_df.set_index('施設GID')['施設ID'].to_dict()
 
     
@@ -451,56 +497,38 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
 
                 # レビューのループを作る
                 try:
-                    for param in result['reviews']:
-                        # print(param)
-                        try:
-                            review_id = param['name']
-                            # 正規表現パターン: 最後のスラッシュ以降の文字列を抽出
-                            pattern = r"/([^/]+)$"
+                    for display_order, param in enumerate(result['reviews'], start=1):
+                        preview_row = build_places_review_row(
+                            param,
+                            assigned_review_id=last_review_id,
+                            facility_id=ID,
+                            facility_gid=facility_id,
+                            display_order=display_order,
+                        )
+                        review_gid = str(preview_row['レビューGID'])
+                        if review_gid and review_gid in existing_review_gids:
+                            continue
 
-                            match = re.search(pattern, review_id)
-                            if match:
-                                review_id = match.group(1)
-                                # print(review_id)
-                            if review_id not in existing_review_gids:
-                                # レビューがない場合
-                                print("新しいreviewがありました。")
-                                review_ID = last_review_id
-                                last_review_id += 1
-                            else:  # レビューがある場合
-                                #ココがおかしいよ
-                                # print("レビューは既にありました。")
-                                continue
-                                # ID =  facility_df[facility_df['施設GID'].str.contains(facility_id)]['施設ID']
-                        except:
-                            review_id = '#N/A '
-                        try:
-                            review_time = param['publishTime']
-                            review_time = review_time[:10]
-                            #   2013-12-13
-                            review_time = convert_date_format(review_time)
-                        except:
-                            review_time = '#N/A '
-                        try:
-                            review_rating = param['rating'] 
-                        except:
-                            review_rating = '#N/A '
-                        try:
-                            review_text = param['text']['text']
-                        except:
-                            review_text = '#N/A '
-                        try:
-                            review_name = param['authorAttribution']['displayName']
-                        except:
-                            review_name = '#N/A '
-                        try:
-                            review_summary = param['summary']
-                        except:
-                            review_summary = '#N/A '
+                        print("新しいreviewがありました。")
+                        review_ID = last_review_id
+                        last_review_id += 1
+                        review_row = {
+                            **preview_row,
+                            'レビューID': review_ID,
+                        }
+                        existing_review_gids.add(review_gid)
 
-                        output_list = [ID,facility_name,facility_tell,postal_code,prefecture,city, address,facility_web,facility_gmap,facility_rank,facility_cat,facility_lati,facility_long,facility_id,'',review_ID,facility_id,review_rating,review_name,review_time,review_text,review_summary,review_id]
-                    #update_listに蓄積
-                        update_list.append(output_list)
+                        facility_values = [
+                            ID, facility_name, facility_tell, postal_code, prefecture, city,
+                            address, facility_web, facility_gmap, facility_rank, facility_cat,
+                            facility_lati, facility_long, facility_id, ''
+                        ]
+                        review_values = [
+                            review_row['レビューID'],
+                            review_row['施設GID'],
+                            *[review_row[column] for column in REVIEW_FIELDNAMES[3:]],
+                        ]
+                        update_list.append([*facility_values, *review_values])
 
                     
                 except:
@@ -526,7 +554,7 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
     # リスト内のリストをタプルに変換
     # tuple_list = [tuple(item) for item in update_list]
     # Pandas DataFrameに変換
-    update_df = pd.DataFrame(columns = ['施設ID','施設名', '電話番号', '郵便番号', '都道府県','市区町村','住所',"web",'GoogleMap','ランク', 'カテゴリ', '緯度','経度','施設GID','営業ステータス', 'レビューID','施設GID_レビュー','レビュワー評価', 'レビュワー名', 'レビュー日時', 'レビュー本文','レビュー要約','レビューGID'])  # 列名を任意に設定
+    update_df = pd.DataFrame(columns=UPDATE_FIELDNAMES)
     if update_list:
         seperate_num = 10
         chunk_num = ceil(len(update_list) / seperate_num)
@@ -534,7 +562,7 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
         # print(result)
         tuple_list = [tuple(item) for item in result]
         for param in tuple_list:
-            con_df = pd.DataFrame(param,columns = ['施設ID','施設名', '電話番号', '郵便番号', '都道府県','市区町村','住所',"web",'GoogleMap','ランク', 'カテゴリ', '緯度','経度','施設GID','営業ステータス', 'レビューID','施設GID_レビュー','レビュワー評価', 'レビュワー名', 'レビュー日時', 'レビュー本文','レビュー要約','レビューGID'])
+            con_df = pd.DataFrame(param, columns=UPDATE_FIELDNAMES)
             update_df = pd.concat([update_df,con_df])
 
     
@@ -545,10 +573,12 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
     # 施設IDから経度緯度までのDataFrameを作成
 
 
-    update_df_facility = update_df[['施設ID','施設名', '電話番号', '郵便番号', '都道府県','市区町村','住所',"web",'GoogleMap','ランク', 'カテゴリ', '緯度','経度','施設GID','営業ステータス']]
+    update_df_facility = update_df[FACILITY_FIELDNAMES]
     # 施設IDとレビューID～レビュー本文のDataFrameを作成
-    update_df_review = update_df[['レビューID','施設ID','施設GID_レビュー',  'レビュワー評価', 'レビュワー名', 'レビュー日時', 'レビュー本文','レビュー要約','レビューGID']]
-    update_df_review.rename(columns={'施設GID_レビュー': '施設GID'}, inplace=True)
+    update_df_review = update_df[['レビューID', '施設ID', *REVIEW_UPDATE_FIELDNAMES[1:]]].rename(
+        columns={'施設GID_レビュー': '施設GID'}
+    )
+    update_df_review = normalize_review_dataframe(update_df_review)
     # 列名 (文字列) をリストで指定
     subset_cols = ['施設GID']
     # 重複を削除
@@ -567,7 +597,7 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
     # 既存のdfにupdate_dfを追加
     # 行方向に結合
     added_facility_df = pd.concat([facility_df, update_df_facility])
-    added_review_df = pd.concat([review_df,update_df_review])
+    added_review_df = normalize_review_dataframe(pd.concat([review_df, update_df_review]))
     # 重複削除
     # 列名 (文字列) をリストで指定
     subset_cols = ['施設GID']
@@ -602,6 +632,11 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
     # request_log_df.to_csv(request_log_path, index=False, encoding='utf-8-sig')
     # print(f"各クエリのリクエスト回数を '{request_log_path}' に保存しました。")
     print("施設情報.csvとレビュー情報.csvを更新しました")
+    # Windowsでも一時・出力ディレクトリを直ちに扱えるよう、今回のログを閉じる。
+    for handler in logging.root.handlers[:]:
+        if isinstance(handler, logging.FileHandler) and handler.baseFilename == os.path.abspath(log_file_path):
+            logging.root.removeHandler(handler)
+            handler.close()
     return request_count
 
 def run_from_config(config_file, file_overrides=None):

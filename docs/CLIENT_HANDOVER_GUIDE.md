@@ -1,141 +1,150 @@
-# brightdata_ELT 運用開始ガイド（新オーナー向け）
+# クライアント向け運用開始・移管ガイド
 
-このドキュメントは、`brightdata_ELT`（コード・Actions・Webapp）と`googlemap`（データ）を引き継いだ方が、ご自身のアカウントでシステムを動かせるようにするための手順書です。
+更新日: 2026-08-25
 
-## このシステムの全体像
+## 1. 現在の正本
 
-```text
-Webapp（Issue作成画面）
-      ↓
-GitHub Issue（brightdata_ELT）
-      ↓
-GitHub Actions（brightdata_ELT）
-      ↓ 設定・入力データを取得／結果を保存
-googlemap（Private・データ専用）
-      ↓
-Bright Data API（施設・レビュー取得）
-      ↓
-結果CSV（googlemap/results/）
-      ↓
-Issueへ完了コメント
-```
+2026年8月25日時点で、最新のコード、WebApp、受入テスト実績が揃っている環境は次の2リポジトリです。
 
-- `brightdata_ELT`: コード・GitHub Actions・Webapp（Public）
-- `googlemap`: 設定ファイル・入力CSV・結果データ（Private）
+- コード・Actions・WebApp: `mememori8888/demo`（Public）
+- 設定・入力・結果CSV: `mememori8888/googlemap`（Private）
+- 公開WebApp: `https://mememori8888.github.io/demo/webapp/`
 
-この2つのリポジトリは両方とも必要です。`brightdata_ELT`だけでは動作しません。
+`brightdata_ELT`は2026年8月23日時点のコードで止まっており、現在の`demo`の修正とPages設定は反映されていません。移管先を`brightdata_ELT`にする場合は、所有権移転前に`demo/main`の最新版を同期し、GitHub Pagesを`main`ブランチの`/docs`から公開してください。
 
----
+今回のレビュー15列修正前は、`demo`と`brightdata_ELT`のどちらの`main.py`も旧9列でした。以前15列へ揃っていたのはBright Data Dataset版だけです。
 
-## Step 1: リポジトリの所有権を確認する
-
-1. GitHubから届く「Repository transfer」の通知メールを確認し、承認する
-2. 以下の2つが、ご自身のGitHubアカウントの所有物になっていることを確認する
-   - `https://github.com/<あなたのアカウント>/brightdata_ELT`
-   - `https://github.com/<あなたのアカウント>/googlemap`
-
-以降の手順は、すべて**ご自身のアカウントで**行ってください。
-
----
-
-## Step 2: 必要なアカウント・契約を用意する
-
-- Bright Dataのアカウント（[公式サイト](https://get.brightdata.com/mam10)）
-  - レビュー取得に使う「Web Scraper API」を利用できる契約が必要です
-  - 利用料金はBright Data側との契約に基づき発生します。開発費とは別に、ご自身の名義・支払い方法で契約してください
-
-現在、Bright DataのSERP APIは利用できないため、SERP APIを使う「施設データ取得 (Facility)」と「30日関連度ランク付き」は実行対象外です。施設取得にはGoogle Places API版を使用してください。
-
----
-
-## Step 3: `brightdata_ELT`にGitHub Secretsを登録する
-
-`brightdata_ELT`の以下のページを開いてください。
+## 2. システム構成
 
 ```text
-https://github.com/<あなたのアカウント>/brightdata_ELT/settings/secrets/actions
+WebApp
+  ↓ Issue作成
+コードリポジトリのIssue / GitHub Actions
+  ↓ 入力取得・結果保存
+googlemap（Private）
+  ↓
+Google Places API または Bright Data Dataset API
+  ↓
+googlemap/results/*.csv + Issue完了コメント
 ```
 
-「New repository secret」から、以下を登録してください。
+コードリポジトリだけでは動作しません。Privateデータリポジトリへの読書き権限が必要です。
 
-| Secret名 | 値の取得方法 | 必須 |
-|---|---|---|
-| `PRIVATE_REPO_PAT` | ご自身のGitHubアカウントで発行するPersonal Access Token。Repository accessに`googlemap`を含め、`Contents: Read and write`権限を付与する | 必須 |
-| `BRIGHTDATA_API_TOKEN` | Bright Dataのダッシュボードで発行するAPIトークン | 必須 |
-| `BRIGHTDATA_ZONE_NAME` | SERP API機能を将来再開する場合のゾーン名。現在の受入テストでは使用しない | 現在は不要 |
-| `GOOGLE_MAPS_API_KEY` | Google CloudでPlaces APIを有効化したAPIキー。Google Places API版を実行する場合のみ使用 | Google Places API版で必須 |
-| `GEMINI_API_KEY` | Gemini APIを使う場合のみ発行（現状コード側で無効化されているため未設定でも動作します） | 任意 |
+## 3. 現在使用する処理
 
-`GITHUB_TOKEN`は登録不要です（GitHub Actionsが自動的に発行します）。
-
-### `PRIVATE_REPO_PAT`発行時の注意
-
-1. https://github.com/settings/personal-access-tokens を開く
-2. Repository access に `brightdata_ELT` と `googlemap` の両方を選択
-3. Permissions で `Contents: Read and write` を選択
-4. `.github/workflows/`を更新する予定がある場合は `Workflows: Read and write` も選択
-
-Playwrightを使った関連度取得機能は現在使用しないため、`GOOGLE_MAPS_STORAGE_STATE_B64`・`GOOGLE_MAPS_STORAGE_STATE_JSON`の登録は不要です。
-
----
-
-## Step 4: 実行権限を持つユーザーを確認する
-
-このシステムは、誰でもIssueを作れますが、実行できるのは限定されたユーザーだけです。
-
-- リポジトリオーナー
-- 許可リストに登録された特定ユーザー（現在: `jmh8128494-cloud`、`asahi26366`）
-
-上記以外のユーザーがIssueを作成した場合は、見積もりが表示されるだけで、実行はされません。実行するには、オーナーまたは許可ユーザーが`/承認`とコメントする必要があります。
-
-許可リストを変更したい場合は、`.github/workflows/issue-ops-universal.yml`内の`AUTO_RUN_USERS`を編集してください。
-
----
-
-## Step 5: 小規模テストを実行する
-
-詳しい入力値、確認項目、結果報告方法は[`CLIENT_ACCEPTANCE_TEST_GUIDE.md`](CLIENT_ACCEPTANCE_TEST_GUIDE.md)を参照してください。
-
-1. 公開Webapp `https://<あなたのアカウント>.github.io/brightdata_ELT/webapp/` をブラウザで開く
-2. 少人数分（10件程度）のテスト用CSVで、レビュー取得または施設取得を選択する
-   - Google Places API版では、まず「設定プリセット」から通常用またはテスト用を選択する
-   - プリセットから検索キーワード、住所CSV、除外GID、各出力CSVが自動設定されるため、必要な項目だけ変更する
-   - 最初の小規模テストでは「テスト」と表示されるプリセットと `settings/address_test.csv` を使用する
-3. 「GitHubでIssueを作成」からIssueを作成する
-4. `brightdata_ELT`の「Actions」タブで、ワークフローが起動し、正常に完了するか確認する
-5. `googlemap/results/`に、結果のCSVが保存されているか確認する
-6. Issueに完了コメントが投稿され、Issueが自動クローズされるか確認する
-
----
-
-## 2種類の取得方法の使い分け
-
-このシステムには、施設・レビューを取得する方法が2種類あります。データソースが異なるため、取得できる項目にも違いがあります。
-
-| 取得方法 | Issueコマンド | 必要なSecret | オーナー返信 |
+| 状態 | WebApp表示 | Issueコマンド | データソース |
 |---|---|---|---|
-| Bright Data（Web Scraper API） | `/run-reviews`、`/run-reviews-sequential` | `BRIGHTDATA_API_TOKEN` | 取得できる |
-| Google Places API（公式API） | `/run-facility-places` | `GOOGLE_MAPS_API_KEY` | **取得できない**（Google公式APIの仕様上の制限） |
-| Bright Data（SERP API） | `/run-facility`、`/run-reviews-relevance` | 現在利用不可 | 実行しない |
+| 使用する | 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) |
+| 使用する | レビュー取得・新仕様逐次実行 | `/run-reviews-sequential` | Bright Data Dataset / Web Scraper API |
+| 使用しない | レビュー取得 (Reviews) | `/run-reviews` | Bright Data SERP API |
+| 使用しない | 施設データ取得 (Facility) | `/run-facility` | Bright Data SERP API |
+| 使用しない | 30日関連度ランク付き | `/run-reviews-relevance` | Dataset + Bright Data SERP API |
 
-オーナー返信の情報が必要な場合は、必ずBright Data経由（`/run-reviews`系）を使用してください。Google Places API経由で取得したレビューは、`オーナー返信`列が常に空欄になります。これはシステムの不具合ではなく、Google Places APIが公式にオーナー返信を提供していないためです。
+Bright DataからSERP APIを利用できないとの連絡がありますが、将来の再開に備えて下3つもWebAppに残しています。現在の受入テストでは選択しません。
 
----
+Google Places APIはレビューのオーナー返信を返しません。返信が必要な場合は`/run-reviews-sequential`を使用します。
 
-## うまくいかない場合の確認ポイント
+## 4. 所有権移転前の必須修正
 
-| 症状 | 確認すること |
+現在はリポジトリ名がコード内に固定されています。所有権移転またはリポジトリ名変更後に、次を新しい値へ変更してください。
+
+1. `docs/webapp/app.js`冒頭
+   - `GITHUB_OWNER`
+   - `GITHUB_REPO`
+   - `DATA_REPO`
+2. `.github/workflows/*.yml`
+   - `repository: mememori8888/googlemap`
+3. `.github/workflows/issue-ops-universal.yml`
+   - 完了コメント用の`https://github.com/mememori8888/googlemap`
+4. 本書と受入手順書の公開URL
+
+確認コマンド:
+
+```powershell
+rg -n "mememori8888|demo|googlemap" docs/webapp .github/workflows docs
+```
+
+変更後はWebAppのキャッシュ対策として`docs/webapp/index.html`末尾の`app.js?v=...`も更新します。
+
+## 5. 必要なアカウントとSecrets
+
+コードリポジトリの`Settings` → `Secrets and variables` → `Actions`で登録します。
+
+| Secret | 用途 | 必須条件 |
+|---|---|---|
+| `PRIVATE_REPO_PAT` | Privateデータリポジトリのcheckout・push | 常に必須 |
+| `GOOGLE_MAPS_API_KEY` | Google Places API版 | Places版で必須 |
+| `BRIGHTDATA_API_TOKEN` | Dataset逐次レビュー | 逐次版で必須 |
+| `BRIGHTDATA_ZONE_NAME` | SERP API | 現在は不要 |
+| `GEMINI_API_KEY` | AI要約 | 現在無効、不要 |
+
+`PRIVATE_REPO_PAT`はFine-grained tokenを使用し、PrivateデータリポジトリをRepository accessへ含め、`Contents: Read and write`を付与します。`GITHUB_TOKEN`はActionsが自動発行するため登録不要です。
+
+## 6. 実行できる限定ユーザー
+
+許可ユーザーは次のファイルで指定されています。
+
+- `.github/workflows/issue-ops-universal.yml`の環境変数`AUTO_RUN_USERS`
+- 現在値: `jmh8128494-cloud,asahi26366`
+
+自動実行できるのはリポジトリオーナーとこの許可リストです。それ以外のユーザーのIssueはプレビューで停止し、オーナーまたは許可ユーザーが`/承認`とコメントすると実行されます。許可リスト変更後は、対象外ユーザーで自動実行されないことも確認してください。
+
+## 7. GitHub Pagesの設定
+
+1. コードリポジトリの`Settings` → `Pages`を開く
+2. `Deploy from a branch`を選択する
+3. Branchを`main`、Folderを`/docs`にする
+4. 公開URL`https://<owner>.github.io/<repo>/webapp/`を開く
+5. 5処理が表示され、受入テストではGoogle Places API版とDataset逐次版を選択できることを確認する
+
+Pagesは反映まで数分かかる場合があります。古い表示が残る場合はスーパーリロードを行います。
+
+## 8. 小規模受入テスト
+
+詳細は[`CLIENT_ACCEPTANCE_TEST_GUIDE.md`](CLIENT_ACCEPTANCE_TEST_GUIDE.md)に従います。
+
+1. Google Places API版を`settings/address_test.csv`で実行する
+2. Dataset逐次レビューを`results/care_roujin-home_test.csv`、`days_back=30`で実行する
+3. どちらもActions成功、Issue完了、PrivateリポジトリへのCSV保存を確認する
+4. レビューCSVが次の共通15列であることを確認する
+
+```text
+レビューID,施設ID,施設GID,レビュワー評価,レビュワー名,レビュー日時,レビュー本文,オーナー返信,レビュー表示順位,レビュー取得ソート,関連度ランク,関連度取得ソート,関連度取得日時,レビュー要約,レビューGID
+```
+
+Places版の`オーナー返信`と関連度3列が空欄なのはAPI仕様上正常です。列が欠落している場合は異常です。
+
+## 9. 取得方法の違い
+
+| 項目 | Google Places API | Bright Data Dataset逐次 |
+|---|---|---|
+| 主用途 | 施設と基本レビューをまとめて取得 | 既存施設のレビューを取得 |
+| オーナー返信 | 取得不可、空欄 | 取得元にあれば保存 |
+| 返却レビュー数 | Places APIの仕様に依存 | Datasetと期間指定に依存 |
+| レビュー取得ソート | 関連度順 | 新着順（Dataset ID） |
+| APIキー | `GOOGLE_MAPS_API_KEY` | `BRIGHTDATA_API_TOKEN` |
+
+## 10. 障害時の確認
+
+| 症状 | 確認 |
 |---|---|
-| Actionsがそもそも起動しない | Issue作成者・コメント投稿者が、Step 4の許可対象になっているか |
-| `private-data`のcheckoutで失敗する | `PRIVATE_REPO_PAT`が正しく設定されているか、`googlemap`への書き込み権限があるか |
-| Bright Data呼び出しで401/403エラー | `BRIGHTDATA_API_TOKEN`が正しいか、有効期限切れでないか |
-| `zone "..." not found` | 現在SERP APIは利用対象外です。施設取得はGoogle Places API版を使用する |
-| 結果が`googlemap`に反映されない | Actionsのログで「Save results to private repository」ステップのエラーを確認 |
+| Actionsが起動しない | Issue作成者または承認者が許可対象か |
+| Private checkout/push失敗 | `PRIVATE_REPO_PAT`の対象と権限 |
+| Google Places 401/403 | `GOOGLE_MAPS_API_KEY`とPlaces API有効化 |
+| Bright Data 401/403 | `BRIGHTDATA_API_TOKEN` |
+| `zone "..." not found` | SERP対象機能を選んでいないか |
+| Datasetで正常な0件 | `days_back`を30へ広げ、対象期間を確認 |
+| DatasetでActionsエラー | スナップショットまたはダウンロード失敗ログを確認 |
+| Placesで返信が空欄 | 正常。APIが返信を提供しない |
+| レビューCSVの列が不足 | コードリポジトリを15列対応後の版へ更新 |
 
----
+Actions URL、Issue URL、失敗ステップ、エラー文を記録し、秘密情報は共有しないでください。
 
-## 困ったときは
+## 11. 移管完了条件
 
-- Actionsの実行ログ（各ステップの出力）を確認してください
-- 個々のPythonスクリプトも、`BRIGHTDATA_API_TOKEN`等の環境変数を設定すればローカルでも実行できます
-- 本ドキュメントに記載のない詳細な移行経緯は、開発者側の`docs/HANDOVER_ROADMAP.md`（社内向け）を参照してください
+- 新オーナーの2リポジトリで所有権または必要権限が確認できる
+- 新オーナー自身のPAT・APIキーへ置き換わっている
+- 固定されたowner/repository名を移管先へ変更済み
+- GitHub Pagesが新しいURLで公開されている
+- 2つの受入テストが成功し、共通15列を確認済み
+- 確認後、旧オーナーのPAT・APIキーを失効している

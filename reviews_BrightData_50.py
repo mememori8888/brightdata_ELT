@@ -16,6 +16,12 @@ from collections import defaultdict
 import google.generativeai as genai
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from review_schema import (
+    REVIEW_FIELDNAMES,
+    SERP_NEWEST_REVIEW_SORT_LABEL,
+    SERP_REVIEW_SORT_LABEL,
+)
+
 # パス設定
 BASE_DIR = Path(__file__).parent  # このファイルがあるディレクトリ (/workspaces/googlemap)
 RESULTS_DIR = BASE_DIR / 'results'
@@ -47,24 +53,19 @@ API_TOKEN = os.getenv('BRIGHTDATA_API_TOKEN')
 TIMEOUT = 120  # 2分
 MAX_WORKERS = int(os.getenv('MAX_WORKERS', '10'))  # 並列処理数（環境変数から取得可能）
 BATCH_SIZE = 50  # バッチサイズ
-REVIEW_SORT = os.getenv('REVIEW_SORT', 'qualityScore')  # qualityScore=関連度順（Dataset既定値）。新着順を明示的に指定しても拒否される場合がある。
-REVIEW_FIELDNAMES = ['レビューID', '施設ID', '施設GID', 'レビュワー評価', 'レビュワー名',
-                     'レビュー日時', 'レビュー本文', 'オーナー返信', 'レビュー表示順位',
-                     'レビュー取得ソート', 'レビュー要約', 'レビューGID']
-
-
+REVIEW_SORT = os.getenv('REVIEW_SORT', 'qualityScore')  # SERP APIの既定は関連度順。
 def format_review_sort_label(sort_value: str) -> str:
-    """CSV出力用のラベル。Dataset ID 由来の取得は新着順として扱う。"""
+    """SERP APIのソート指定をCSV出力用の説明へ変換する。"""
     if sort_value is None:
-        return '新着順（Dataset ID）'
+        return SERP_REVIEW_SORT_LABEL
     normalized = str(sort_value).strip()
     if not normalized:
-        return '新着順（Dataset ID）'
+        return SERP_REVIEW_SORT_LABEL
     lowered = normalized.lower()
     if lowered == 'qualityscore':
-        return '新着順（Dataset ID）'
+        return SERP_REVIEW_SORT_LABEL
     if lowered == 'newestfirst':
-        return '新着順'
+        return SERP_NEWEST_REVIEW_SORT_LABEL
     return normalized
 
 # Gemini API設定
@@ -839,7 +840,10 @@ def save_reviews_to_csv(csv_file_path, reviews, facility_summaries=None):
                     'レビュー本文': review.get('text', ''),
                     'オーナー返信': review.get('response_of_owner', ''),
                     'レビュー表示順位': review.get('review_display_order', ''),
-                    'レビュー取得ソート': review.get('review_sort', ''),
+                    'レビュー取得ソート': format_review_sort_label(review.get('review_sort', '')),
+                    '関連度ランク': '',
+                    '関連度取得ソート': '',
+                    '関連度取得日時': '',
                     'レビュー要約': summary,
                     'レビューGID': review.get('review_gid', '')
                 })
@@ -862,7 +866,10 @@ def save_reviews_to_csv(csv_file_path, reviews, facility_summaries=None):
                     'レビュー本文': review.get('レビュー本文', ''),
                     'オーナー返信': review.get('オーナー返信', ''),
                     'レビュー表示順位': review.get('レビュー表示順位', ''),
-                    'レビュー取得ソート': review.get('レビュー取得ソート', ''),
+                    'レビュー取得ソート': format_review_sort_label(review.get('レビュー取得ソート', '')),
+                    '関連度ランク': review.get('関連度ランク', ''),
+                    '関連度取得ソート': review.get('関連度取得ソート', ''),
+                    '関連度取得日時': review.get('関連度取得日時', ''),
                     'レビュー要約': summary,
                     'レビューGID': review.get('レビューGID', '')
                 })

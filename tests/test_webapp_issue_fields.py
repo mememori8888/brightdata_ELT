@@ -20,6 +20,15 @@ class WebAppIssueFieldTests(unittest.TestCase):
         self.assertNotIn("**管理者へ**", self.app)
         self.assertNotIn("入力して承認してください", self.app)
 
+    def test_serp_workflows_remain_available_for_future_reactivation(self):
+        self.assertIn(
+            "const ALLOWED_WEBAPP_WORKFLOWS = ['reviews', 'reviews_sequential', 'reviews_recent_relevance', 'facility', 'facility_places'];",
+            self.app,
+        )
+        for workflow in ("reviews", "reviews_recent_relevance", "facility"):
+            self.assertIn(f'<option value="{workflow}">', self.html)
+        self.assertNotIn("SERP API利用不可", self.html)
+
 
 if __name__ == "__main__":
     unittest.main()
