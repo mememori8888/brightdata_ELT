@@ -118,6 +118,8 @@ jobs:
       - name: Run facility scraper
         env:
           BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
+          # settings/ と results/ は private-data から workspace 直下へコピー済み。
+          PRIVATE_DATA_ROOT: ${{ github.workspace }}
           MAX_WORKERS: 10
           IO_MULTIPLIER: 3
           CONFIG_FILE: ${{ github.event.inputs.config_file || 'settings/settings.json' }}
