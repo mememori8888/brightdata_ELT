@@ -32,6 +32,7 @@ Google Places APIはオーナー返信を提供しません。返信が必要な
 - `docs/webapp/`: GitHub Pages用WebApp
 - `docs/CLIENT_ACCEPTANCE_TEST_GUIDE.md`: お客様側の受入テスト
 - `docs/CLIENT_HANDOVER_GUIDE.md`: 運用開始・移管手順
+- `docs/ADDRESS_CSV_GUIDE.md`: 住所CSV・検索キーワード・不正テンプレートの説明
 - `docs/n8n_google_reviews_ops.md`: n8nとGoogleログイン状態のローカル操作
 - `docs/GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md`: Public／Privateと長時間処理の判断資料
 

@@ -39,6 +39,12 @@ function inferSettingsPurposes(filename) {
     return purposes;
 }
 
+// 住所CSVは内容検証済みのfiles.jsonだけを信頼する。
+// GitHub APIで見つけた新規ファイルは、一覧生成ワークフローの検証後に選択可能になる。
+function inferLiveSettingsPurposes(filename) {
+    return inferSettingsPurposes(filename).filter(purpose => purpose !== 'address_input');
+}
+
 function inferResultsPurposes(filename) {
     const lowerName = filename.toLowerCase();
     const purposes = [];
@@ -88,6 +94,7 @@ function normalizeFileEntries(entries, basePath, inferPurposes) {
         }
 
         return {
+            ...entry,
             name: entry.name,
             path: entry.path || `${basePath}/${entry.name}`,
             extension: entry.extension || (entry.name.includes('.') ? `.${entry.name.split('.').pop().toLowerCase()}` : ''),
@@ -607,7 +614,7 @@ async function loadFileOptions() {
         }
 
         const [liveSettings, liveResults] = await Promise.all([
-            fetchGitHubFileEntries('settings', inferSettingsPurposes),
+            fetchGitHubFileEntries('settings', inferLiveSettingsPurposes),
             fetchGitHubFileEntries('results', inferResultsPurposes)
         ]);
 
@@ -616,12 +623,11 @@ async function loadFileOptions() {
             .filter(entry => !shouldHideFromWebapp(entry));
         
         // CSVファイルのみフィルタ
-        const settingsCsvFiles = fileCache.settings.filter(entry => entry.extension === '.csv').map(entry => entry.name);
         const resultsCsvFiles = fileCache.results.filter(entry => entry.extension === '.csv').map(entry => entry.name);
         
         // 住所CSVファイル (settings/*.csv)
         const addressFiles = fileCache.settings.filter(entry => hasPurpose(entry, 'address_input')).map(entry => entry.name);
-        populateDropdown('custom_address_csv', addressFiles.length > 0 ? addressFiles : settingsCsvFiles, 'settings');
+        populateDropdown('custom_address_csv', addressFiles, 'settings');
         
         // 施設ファイル
         const facilityFiles = fileCache.results.filter(entry => hasPurpose(entry, 'facility_output')).map(entry => entry.name);
@@ -665,12 +671,12 @@ async function loadFileOptions() {
         refreshSequentialOutputOptions();
         
         // Facility workflow用のドロップダウンを設定
-        populateDropdown('facility_custom_address_csv', settingsCsvFiles, 'settings', true);
+        populateDropdown('facility_custom_address_csv', addressFiles, 'settings', true);
         populateDropdown('facility_custom_facility_file', facilityFiles, 'results', true);
         populateDropdown('facility_custom_exclude_gids_path', excludeFiles, 'settings', true);
 
         // Google Places API workflow用の入出力ファイル
-        populateDropdown('places_address_csv', addressFiles.length > 0 ? addressFiles : settingsCsvFiles, 'settings', false);
+        populateDropdown('places_address_csv', addressFiles, 'settings', false);
         populateDropdown('places_facility_file', facilityFiles, 'results', true);
         populateDropdown('places_review_file', reviewFiles, 'results', true);
         populateDropdown('places_update_facility_file', addDataFiles, 'results', true);

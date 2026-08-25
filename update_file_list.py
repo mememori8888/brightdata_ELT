@@ -3,6 +3,8 @@ import json
 import os
 import re
 
+from address_csv_validator import AddressCsvValidationError, load_address_queries
+
 
 SEQUENTIAL_EXCLUDED_KEYWORDS = {
     'review',
@@ -36,15 +38,33 @@ def _get_extension(filename):
     return os.path.splitext(filename)[1].lower()
 
 
-def classify_settings_file(filename):
+def _address_validation_error(file_path, cache=None):
+    if not file_path:
+        return "住所CSVの内容を未検証"
+
+    cache = cache if cache is not None else {}
+    cache_key = os.path.abspath(file_path)
+    if cache_key not in cache:
+        try:
+            load_address_queries(file_path)
+            cache[cache_key] = ""
+        except AddressCsvValidationError as exc:
+            cache[cache_key] = str(exc)
+    return cache[cache_key]
+
+
+def classify_settings_file(filename, file_path=None, address_validation_cache=None):
     lower_name = filename.lower()
     ext = _get_extension(filename)
     purposes = []
+    validation_error = ""
 
     if ext == '.csv':
         purposes.append('settings_csv')
         if 'address' in lower_name or 'adress' in lower_name:
-            purposes.append('address_input')
+            validation_error = _address_validation_error(file_path, address_validation_cache)
+            if not validation_error:
+                purposes.append('address_input')
         if 'exclude' in lower_name:
             purposes.append('exclude_gids')
     elif ext == '.json':
@@ -52,12 +72,16 @@ def classify_settings_file(filename):
         if 'settings' in lower_name:
             purposes.append('config')
 
-    return {
+    entry = {
         'name': filename,
         'path': f'settings/{filename}',
         'extension': ext,
         'purposes': purposes,
     }
+    if validation_error:
+        # files.jsonは公開されるため、ローカル絶対パスを含む詳細エラーは出さない。
+        entry['validation_status'] = 'invalid_address_template'
+    return entry
 
 
 def classify_results_file(filename, size=0, mtime=0):
@@ -101,7 +125,7 @@ def _normalize_csv_path(value, root):
     return normalized
 
 
-def extract_places_profiles(settings_dir):
+def extract_places_profiles(settings_dir, address_validation_cache=None):
     """Google Places用設定JSONからWebappに公開できる項目だけを抽出する。"""
     profiles = []
     if not os.path.exists(settings_dir):
@@ -122,6 +146,16 @@ def extract_places_profiles(settings_dir):
 
             filename = os.path.basename(file_path)
             task_name = str(task.get('task_name') or f'task-{index + 1}')
+            address_csv = _normalize_csv_path(task.get('address_csv_path'), 'settings')
+            address_file = os.path.join(settings_dir, address_csv.replace('settings/', '', 1))
+            validation_error = _address_validation_error(address_file, address_validation_cache)
+            if validation_error:
+                print(
+                    "[WARN] 住所CSVが不正なためWebAppプリセットから除外します: "
+                    f"{address_csv}: {validation_error}"
+                )
+                continue
+
             primary_query = str(task['query']).split(' -', 1)[0]
             profile_hint = f"{filename} {task_name} {task.get('address_csv_path', '')}".lower()
             if 'test' in profile_hint:
@@ -137,7 +171,7 @@ def extract_places_profiles(settings_dir):
                 'task_name': task_name,
                 'query': task['query'],
                 'included_type': task.get('includedType') or '',
-                'address_csv': _normalize_csv_path(task.get('address_csv_path'), 'settings'),
+                'address_csv': address_csv,
                 'facility_file': _normalize_csv_path(task.get('facility_file'), 'results'),
                 'review_file': _normalize_csv_path(task.get('review_file'), 'results'),
                 'update_facility_file': _normalize_csv_path(task.get('update_facility_path'), 'results'),
@@ -188,13 +222,19 @@ def update_file_list():
     
     # settingsディレクトリのCSVファイルを取得
     settings_csv_files = []
+    valid_address_csv_files = []
     settings_entries = []
+    address_validation_cache = {}
     if os.path.exists(settings_dir):
         for file_path in glob.glob(os.path.join(settings_dir, '*.csv')):
             filename = os.path.basename(file_path)
             settings_csv_files.append(filename)
-            settings_entries.append(classify_settings_file(filename))
+            entry = classify_settings_file(filename, file_path, address_validation_cache)
+            settings_entries.append(entry)
+            if 'address_input' in entry['purposes']:
+                valid_address_csv_files.append(filename)
     settings_csv_files.sort()
+    valid_address_csv_files.sort()
     
     # settingsディレクトリのJSONファイルを取得
     settings_json_files = []
@@ -205,7 +245,7 @@ def update_file_list():
             settings_entries.append(classify_settings_file(filename))
     settings_json_files.sort()
     settings_entries.sort(key=lambda entry: entry['name'])
-    places_profiles = extract_places_profiles(settings_dir)
+    places_profiles = extract_places_profiles(settings_dir, address_validation_cache)
     
     # resultsディレクトリのCSVファイルを取得
     results_files = []
@@ -235,6 +275,7 @@ def update_file_list():
             }, f, indent=2, ensure_ascii=False)
         print(f"✅ File list saved to {output_file}")
         print(f"   - Settings CSV files: {len(settings_csv_files)}")
+        print(f"   - Valid address CSV files: {len(valid_address_csv_files)}")
         print(f"   - Settings JSON files: {len(settings_json_files)}")
         print(f"   - Google Places profiles: {len(places_profiles)}")
         print(f"   - Results files: {len(results_filenames)}")
@@ -247,7 +288,7 @@ def update_file_list():
 
     if should_update_workflow and os.path.exists(workflow_file):
         print(f"\n📝 Updating workflow file: {workflow_file}")
-        update_workflow_choices(workflow_file, settings_csv_files, settings_json_files, results_filenames)
+        update_workflow_choices(workflow_file, valid_address_csv_files, settings_json_files, results_filenames)
     elif should_update_workflow:
         print(f"⚠️  Workflow file not found: {workflow_file}")
     else:

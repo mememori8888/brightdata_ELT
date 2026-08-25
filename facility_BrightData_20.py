@@ -23,6 +23,7 @@ while keeping the 'format: "json"' and the corrected GID logic
 """
 import os
 import requests
+from address_csv_validator import load_address_queries
 import json
 import csv
 import datetime
@@ -388,23 +389,8 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
         print(f"警告: 除外GIDファイルが見つからないか、指定されていません: {exclude_gids_path}")
 
 
-    # 住所リストの読み込み
-    adress_list = []
-    if os.path.exists(file_path):
-        with open(file_path, newline="", encoding='utf-8') as f:
-            reader = csv.reader(f)
-            try:
-                next(reader) # ヘッダー行を読み飛ばす
-            except StopIteration:
-                pass # ファイルが空の場合は何もしない
-            
-            for row in reader:
-                joined_string = ' '.join(row)
-                adress_list.append(joined_string)
-    
-    if not adress_list:
-        logging.error(f"{file_path} に1行以上のデータ行（ヘッダー除く）が必要です")
-        print(f"警告: {file_path} に処理対象の住所データが見つかりません。")
+    # APIを呼ぶ前にテンプレートを検証し、住所検索文字列へ変換する
+    adress_list = load_address_queries(file_path)
 
     # 既存施設ファイルの読み込みとヘッダー書き込み
     existing_gids = set()

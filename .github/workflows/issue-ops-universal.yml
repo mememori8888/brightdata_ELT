@@ -303,6 +303,7 @@ jobs:
           python3 - <<'PY'
           import json
           import os
+          from address_csv_validator import AddressCsvValidationError, load_address_queries
 
           workflow = os.environ.get("WORKFLOW", "").strip()
           params_raw = os.environ.get("PARAMS", "{}").strip()
@@ -336,7 +337,7 @@ jobs:
               ],
               "reviews_sequential": ["run_reviews_local_interactive.py", "get_reviews_from_dental_new.py"],
               "reviews_recent_relevance": ["run_reviews_local_interactive.py", "get_reviews_from_dental_new.py", "scripts/enrich_review_relevance_ranks.py"],
-              "facility_places": ["main.py"],
+              "facility_places": ["main.py", "address_csv_validator.py"],
           }
 
           wf_file = workflow_files.get(workflow)
@@ -371,6 +372,11 @@ jobs:
               address_csv = params.get("address_csv")
               if address_csv and not os.path.exists(data_path(address_csv)):
                   errors.append(f"指定された address_csv が存在しません: {address_csv}")
+              elif address_csv:
+                  try:
+                      load_address_queries(data_path(address_csv))
+                  except AddressCsvValidationError as exc:
+                      errors.append(f"住所CSVテンプレートが不正です: {exc}")
               exclude_gids_file = params.get("exclude_gids_file")
               if exclude_gids_file and not os.path.exists(data_path(exclude_gids_file)):
                   errors.append(f"指定された exclude_gids_file が存在しません: {exclude_gids_file}")

@@ -83,7 +83,10 @@ class ReviewSchemaTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             address_file = root / "address.csv"
-            address_file.write_text("東京都千代田区\n", encoding="utf-8")
+            address_file.write_text(
+                "都道府県,市区町村\n東京都,千代田区\n",
+                encoding="utf-8",
+            )
             facility_file = root / "facility.csv"
             review_file = root / "review.csv"
             update_facility_file = root / "facility_increment.csv"

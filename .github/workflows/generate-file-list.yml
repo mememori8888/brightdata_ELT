@@ -1,4 +1,4 @@
-name: UIに反映するファイルリスト作成　実行する必要なし
+name: WebApp用ファイル一覧・住所CSV検証
 
 permissions:
   contents: write
@@ -19,6 +19,7 @@ jobs:
           fetch-depth: 1
           sparse-checkout: |
             docs/webapp
+            address_csv_validator.py
             update_file_list.py
 
       - name: Checkout private data

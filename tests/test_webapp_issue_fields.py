@@ -31,6 +31,15 @@ class WebAppIssueFieldTests(unittest.TestCase):
         self.assertIn('<optgroup label="SERP API再開後">', self.html)
         self.assertNotIn("SERP API利用不可", self.html)
 
+    def test_only_validated_address_files_are_exposed(self):
+        self.assertIn("function inferLiveSettingsPurposes", self.app)
+        self.assertIn("purpose !== 'address_input'", self.app)
+        self.assertIn("populateDropdown('places_address_csv', addressFiles", self.app)
+        self.assertNotIn(
+            "addressFiles.length > 0 ? addressFiles : settingsCsvFiles",
+            self.app,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

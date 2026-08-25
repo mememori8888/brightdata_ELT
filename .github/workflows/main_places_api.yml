@@ -133,6 +133,12 @@ jobs:
             exit 1
           fi
 
+          VALIDATE_ARGS=(--config-file "$CONFIG_FILE")
+          if [ -n "$ADDRESS_CSV" ]; then
+            VALIDATE_ARGS+=(--address-csv "$ADDRESS_CSV")
+          fi
+          python address_csv_validator.py "${VALIDATE_ARGS[@]}"
+
       - name: Run Google Places API facility scraper
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}

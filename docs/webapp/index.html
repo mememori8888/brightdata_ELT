@@ -11,7 +11,7 @@
     <div class="container">
         <header>
             <h1>🔍 BrightData Job Manager</h1>
-            <p>GitHub Actions経由で各種データ取得ジョブを実行</p>
+            <p>検索条件と入出力ファイルを選び、GitHub IssueからActionsを実行します。CSVの内容はプライベートデータリポジトリ側で編集します。</p>
         </header>
 
         <main>
@@ -306,6 +306,7 @@
                             <select id="places_query" required aria-required="true">
                                 <option value="">設定プリセットを選択してください</option>
                             </select>
+                            <small>住所CSVの各行と結合して検索します。例: 北海道 札幌市 + 歯科医院</small>
                         </div>
 
                         <div class="form-group">
@@ -327,7 +328,7 @@
                             <select id="places_address_csv" aria-label="Google Places API 入力住所CSV">
                                 <option value="">（設定ファイルのデフォルトを使用）</option>
                             </select>
-                            <small>検索対象の住所リスト (settings/*.csv)</small>
+                            <small>検索地域を1行ずつ指定します。行数を増やすと検索範囲・処理時間・API費用も増えます。検証済みCSVだけを表示します。</small>
                         </div>
 
                         <div class="form-group">
@@ -405,6 +406,6 @@
     </div>
 
     <!-- フォーム変更時に古いJavaScriptがブラウザに残らないようバージョンを更新する -->
-    <script src="app.js?v=20260825-concurrency-ui"></script>
+    <script src="app.js?v=20260825-address-validation"></script>
 </body>
 </html>

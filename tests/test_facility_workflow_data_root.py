@@ -30,6 +30,18 @@ class FacilityWorkflowDataRootTests(unittest.TestCase):
 
         self.assertIn('"faiility_brightdata_new_version.py"', workflow)
 
+    def test_places_workflows_validate_address_templates_before_api_calls(self):
+        places_workflow = (
+            REPOSITORY_ROOT / ".github/workflows/main_places_api.yml"
+        ).read_text(encoding="utf-8")
+        issue_workflow = (
+            REPOSITORY_ROOT / ".github/workflows/issue-ops-universal.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("python address_csv_validator.py", places_workflow)
+        self.assertIn("load_address_queries(data_path(address_csv))", issue_workflow)
+        self.assertIn('"address_csv_validator.py"', issue_workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

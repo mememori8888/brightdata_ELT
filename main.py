@@ -16,6 +16,7 @@ import random
 from math import ceil
 import random
 
+from address_csv_validator import load_address_queries
 from review_schema import PLACES_REVIEW_SORT_LABEL, REVIEW_FIELDNAMES
 
 randomC = random.uniform(1,5)
@@ -167,21 +168,6 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
         new_format = date_obj.strftime('%Y年%m月%d日')
         return new_format
 
-    # 住所のcsvを読み込んで、listにいれる関数
-    def csv2list(input_file):
-        adress_list = []
-        # CSVファイルを開く
-        with open(input_file, 'r',encoding='utf-8') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                joined_string = ' '.join(row)
-                after_row = str(joined_string)
-                adress_list.append(after_row)
-
-        return adress_list
-    
-
-
     def search_places(api_key, query,fields,page_token=None,**kwargs):
         """
         Google Places API (新版) の searchText API を呼び出す関数
@@ -293,7 +279,7 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
             logging.error(f"除外GIDリスト '{exclude_gids_path}' の読み込みに失敗しました: {e}")
 
     # 全体の流れ
-    adress_list = csv2list(file_path)
+    adress_list = load_address_queries(file_path)
     #リクエスト数が超過しないようにするためのカウント
     request_count = 0
     #IDの振り方
