@@ -2,149 +2,173 @@
 
 更新日: 2026-08-25
 
-## 1. 現在の正本
+この文書は、所有権移転後の新オーナーを`jmh8128494-cloud`として記載しています。
 
-2026年8月25日時点で、最新のコード、WebApp、受入テスト実績が揃っている環境は次の2リポジトリです。
+## 1. 移管後の構成
 
-- コード・Actions・WebApp: `mememori8888/demo`（Public）
-- 設定・入力・結果CSV: `mememori8888/googlemap`（Private）
-- 公開WebApp: `https://mememori8888.github.io/demo/webapp/`
+| 用途 | 移管後のリポジトリ・URL | 公開範囲 |
+|---|---|---|
+| コード・Actions・WebApp | `jmh8128494-cloud/brightdata_ELT` | Public |
+| 設定・入力・結果CSV | `jmh8128494-cloud/googlemap` | Private |
+| 公開WebApp | `https://jmh8128494-cloud.github.io/brightdata_ELT/webapp/` | Public |
 
-`brightdata_ELT`は2026年8月23日時点のコードで止まっており、現在の`demo`の修正とPages設定は反映されていません。移管先を`brightdata_ELT`にする場合は、所有権移転前に`demo/main`の最新版を同期し、GitHub Pagesを`main`ブランチの`/docs`から公開してください。
+`brightdata_ELT`のコード内にあるowner・repository参照は、この移管先へ変更済みです。同期後から所有権移転完了までの間は、WebAppのIssue作成先とActionsのデータ取得先が移管後URLを向くため、実行しないでください。
 
-今回のレビュー15列修正前は、`demo`と`brightdata_ELT`のどちらの`main.py`も旧9列でした。以前15列へ揃っていたのはBright Data Dataset版だけです。
+## 2. 所有権移転の順番
 
-## 2. システム構成
+参照切れを最小限にするため、次の順番で手作業を行います。
 
-```text
-WebApp
-  ↓ Issue作成
-コードリポジトリのIssue / GitHub Actions
-  ↓ 入力取得・結果保存
-googlemap（Private）
-  ↓
-Google Places API または Bright Data Dataset API
-  ↓
-googlemap/results/*.csv + Issue完了コメント
-```
+1. `googlemap`を`jmh8128494-cloud`へTransfer ownershipする
+2. 新オーナーがTransferを承認し、Privateのままであることを確認する
+3. `brightdata_ELT`を`jmh8128494-cloud`へTransfer ownershipする
+4. 新オーナーがTransferを承認し、Publicのままであることを確認する
+5. 両リポジトリの既定ブランチが`main`であることを確認する
+6. 新オーナーのSecretsとPagesを設定してから受入テストを行う
 
-コードリポジトリだけでは動作しません。Privateデータリポジトリへの読書き権限が必要です。
+旧オーナーの認証情報は、新オーナー側の受入テストが成功するまで失効させません。
 
-## 3. 現在使用する処理
-
-| 状態 | WebApp表示 | Issueコマンド | データソース |
-|---|---|---|---|
-| 使用する | 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) |
-| 使用する | レビュー取得・新仕様逐次実行 | `/run-reviews-sequential` | Bright Data Dataset / Web Scraper API |
-| 使用しない | レビュー取得 (Reviews) | `/run-reviews` | Bright Data SERP API |
-| 使用しない | 施設データ取得 (Facility) | `/run-facility` | Bright Data SERP API |
-| 使用しない | 30日関連度ランク付き | `/run-reviews-relevance` | Dataset + Bright Data SERP API |
-
-Bright DataからSERP APIを利用できないとの連絡がありますが、将来の再開に備えて下3つもWebAppに残しています。現在の受入テストでは選択しません。
-
-Google Places APIはレビューのオーナー返信を返しません。返信が必要な場合は`/run-reviews-sequential`を使用します。
-
-## 4. 所有権移転前の必須修正
-
-現在はリポジトリ名がコード内に固定されています。所有権移転またはリポジトリ名変更後に、次を新しい値へ変更してください。
-
-1. `docs/webapp/app.js`冒頭
-   - `GITHUB_OWNER`
-   - `GITHUB_REPO`
-   - `DATA_REPO`
-2. `.github/workflows/*.yml`
-   - `repository: mememori8888/googlemap`
-3. `.github/workflows/issue-ops-universal.yml`
-   - 完了コメント用の`https://github.com/mememori8888/googlemap`
-4. 本書と受入手順書の公開URL
-
-確認コマンド:
+既存のローカルcloneを継続使用する場合は、Transfer後にremote URLを更新します。
 
 ```powershell
-rg -n "mememori8888|demo|googlemap" docs/webapp .github/workflows docs
+git remote set-url origin https://github.com/jmh8128494-cloud/brightdata_ELT.git
+git remote -v
 ```
 
-変更後はWebAppのキャッシュ対策として`docs/webapp/index.html`末尾の`app.js?v=...`も更新します。
+## 3. コードへ反映済みの移管先設定
 
-## 5. 必要なアカウントとSecrets
+次はすでに`jmh8128494-cloud`向けへ変更済みです。
 
-コードリポジトリの`Settings` → `Secrets and variables` → `Actions`で登録します。
+| 対象 | 設定値 |
+|---|---|
+| `docs/webapp/app.js` | `GITHUB_OWNER = 'jmh8128494-cloud'` |
+| `docs/webapp/app.js` | `GITHUB_REPO = 'brightdata_ELT'` |
+| `docs/webapp/app.js` | `DATA_REPO = 'googlemap'` |
+| `.github/workflows/*.yml` | `repository: jmh8128494-cloud/googlemap` |
+| `issue-ops-universal.yml`の完了リンク | `https://github.com/jmh8128494-cloud/googlemap` |
+| PythonのGitHub ownerフォールバック | `jmh8128494-cloud` |
+| WebAppキャッシュ識別子 | `app.js?v=20260825-owner-transfer` |
+
+移管前の固定値が現行ファイルに残っていないことを確認するコマンド:
+
+```powershell
+$oldOwner = 'mememori' + '8888'
+$oldCodeRepo = 'de' + 'mo'
+rg -n "$oldOwner|GITHUB_REPO = '$oldCodeRepo'|repository: $oldOwner" `
+  docs/webapp .github/workflows README.md `
+  docs/CLIENT_ACCEPTANCE_TEST_GUIDE.md `
+  docs/CLIENT_HANDOVER_GUIDE.md `
+  docs/issueオーケストレーション.md `
+  reviews_BrightData_50.py facility_BrightData_20_update.py
+```
+
+この確認は結果0件が正常です。`HANDOVER_ROADMAP.md`などの履歴資料には、過去のIssue URLや旧リポジトリ名が記録として残っています。現在の設定確認には使いません。
+
+## 4. 必要なSecrets
+
+`jmh8128494-cloud/brightdata_ELT`の`Settings` → `Secrets and variables` → `Actions`で登録します。
 
 | Secret | 用途 | 必須条件 |
 |---|---|---|
-| `PRIVATE_REPO_PAT` | Privateデータリポジトリのcheckout・push | 常に必須 |
+| `PRIVATE_REPO_PAT` | `jmh8128494-cloud/googlemap`のcheckout・push | 常に必須 |
 | `GOOGLE_MAPS_API_KEY` | Google Places API版 | Places版で必須 |
 | `BRIGHTDATA_API_TOKEN` | Dataset逐次レビュー | 逐次版で必須 |
-| `BRIGHTDATA_ZONE_NAME` | SERP API | 現在は不要 |
+| `BRIGHTDATA_ZONE_NAME` | SERP APIのゾーン | SERP再開時に必須 |
 | `GEMINI_API_KEY` | AI要約 | 現在無効、不要 |
 
-`PRIVATE_REPO_PAT`はFine-grained tokenを使用し、PrivateデータリポジトリをRepository accessへ含め、`Contents: Read and write`を付与します。`GITHUB_TOKEN`はActionsが自動発行するため登録不要です。
+`PRIVATE_REPO_PAT`は新オーナー自身がFine-grained tokenとして発行します。
 
-## 6. 実行できる限定ユーザー
+- Repository access: `jmh8128494-cloud/googlemap`
+- Repository permissions: `Contents: Read and write`
+- 有効期限: 運用ルールに合わせて設定し、期限前に更新する
+- 値を文書、Issue、Actionsログへ貼らない
 
-許可ユーザーは次のファイルで指定されています。
+`GITHUB_TOKEN`はActionsが自動発行するため登録不要です。
 
-- `.github/workflows/issue-ops-universal.yml`の環境変数`AUTO_RUN_USERS`
-- 現在値: `jmh8128494-cloud,asahi26366`
+### リポジトリ設定も確認する
 
-自動実行できるのはリポジトリオーナーとこの許可リストです。それ以外のユーザーのIssueはプレビューで停止し、オーナーまたは許可ユーザーが`/承認`とコメントすると実行されます。許可リスト変更後は、対象外ユーザーで自動実行されないことも確認してください。
+- `brightdata_ELT`でIssuesが有効になっている
+- `brightdata_ELT`でGitHub Actionsが有効になっている
+- 組織・リポジトリポリシーがworkflowの`contents: write`と`issues: write`を禁止していない
+- `googlemap/main`のbranch ruleがPATによる結果CSVのpushを拒否しない
+- `googlemap`をPublicへ変更していない
 
-## 7. GitHub Pagesの設定
+## 5. 実行権限
 
-1. コードリポジトリの`Settings` → `Pages`を開く
-2. `Deploy from a branch`を選択する
+自動実行できるのは次のユーザーです。
+
+- リポジトリオーナー`jmh8128494-cloud`
+- `.github/workflows/issue-ops-universal.yml`の`AUTO_RUN_USERS`に登録されたユーザー
+- 現在の許可リスト: `jmh8128494-cloud,asahi26366`
+
+移管後は`jmh8128494-cloud`がオーナー判定でも許可されるため、許可リスト内の同名指定は重複しますが動作上の問題はありません。`asahi26366`を今後も自動実行ユーザーにするかは、運用開始前に確認してください。
+
+それ以外のユーザーのIssueはプレビューで停止し、オーナーまたは許可ユーザーによる`/承認`コメントで実行されます。
+
+## 6. GitHub Pages
+
+1. `jmh8128494-cloud/brightdata_ELT`の`Settings` → `Pages`を開く
+2. Sourceで`Deploy from a branch`を選ぶ
 3. Branchを`main`、Folderを`/docs`にする
-4. 公開URL`https://<owner>.github.io/<repo>/webapp/`を開く
-5. 5処理が表示され、受入テストではGoogle Places API版とDataset逐次版を選択できることを確認する
+4. Pagesのbuildとdeployが成功するまで待つ
+5. `https://jmh8128494-cloud.github.io/brightdata_ELT/webapp/`を開く
+6. WebAppから作成されるIssue URLが`jmh8128494-cloud/brightdata_ELT`であることを確認する
 
-Pagesは反映まで数分かかる場合があります。古い表示が残る場合はスーパーリロードを行います。
+WebAppに古いJavaScriptが残る場合は、スーパーリロードまたはブラウザキャッシュ削除を行います。
 
-## 8. 小規模受入テスト
+## 7. 現在のワークフロー
+
+| WebApp表示 | Issueコマンド | データソース | 初回受入 |
+|---|---|---|---|
+| 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) | 実施する |
+| レビュー取得・新仕様逐次実行 | `/run-reviews-sequential` | Bright Data Dataset / Web Scraper API | 実施する |
+| レビュー取得 (Reviews) | `/run-reviews` | Bright Data SERP API | ゾーン再開後に実施 |
+| 施設データ取得 (Facility) | `/run-facility` | Bright Data SERP API | ゾーン再開後に実施 |
+| 30日関連度ランク付き | `/run-reviews-relevance` | Dataset + SERP API | ゾーン再開後に実施 |
+
+SERP依存の3処理は将来の再開に備えてWebAppとActionsへ残しています。SERPゾーンの利用可否をBright Data側で確認できるまでは、初回受入テストでは選択しません。
+
+Google Places APIはレビューのオーナー返信を返しません。返信が必要な場合はDataset逐次版を使用します。
+
+## 8. 受入テスト
 
 詳細は[`CLIENT_ACCEPTANCE_TEST_GUIDE.md`](CLIENT_ACCEPTANCE_TEST_GUIDE.md)に従います。
 
+初回は次の2処理を1件ずつ実行します。
+
 1. Google Places API版を`settings/address_test.csv`で実行する
 2. Dataset逐次レビューを`results/care_roujin-home_test.csv`、`days_back=30`で実行する
-3. どちらもActions成功、Issue完了、PrivateリポジトリへのCSV保存を確認する
+3. Actions成功、Issue完了、`jmh8128494-cloud/googlemap`へのCSV保存を確認する
 4. レビューCSVが次の共通15列であることを確認する
 
 ```text
 レビューID,施設ID,施設GID,レビュワー評価,レビュワー名,レビュー日時,レビュー本文,オーナー返信,レビュー表示順位,レビュー取得ソート,関連度ランク,関連度取得ソート,関連度取得日時,レビュー要約,レビューGID
 ```
 
-Places版の`オーナー返信`と関連度3列が空欄なのはAPI仕様上正常です。列が欠落している場合は異常です。
+Places版の`オーナー返信`、関連度3列、`レビュー要約`が空欄なのは正常です。列が欠落している場合は異常です。
 
-## 9. 取得方法の違い
-
-| 項目 | Google Places API | Bright Data Dataset逐次 |
-|---|---|---|
-| 主用途 | 施設と基本レビューをまとめて取得 | 既存施設のレビューを取得 |
-| オーナー返信 | 取得不可、空欄 | 取得元にあれば保存 |
-| 返却レビュー数 | Places APIの仕様に依存 | Datasetと期間指定に依存 |
-| レビュー取得ソート | 関連度順 | 新着順（Dataset ID） |
-| APIキー | `GOOGLE_MAPS_API_KEY` | `BRIGHTDATA_API_TOKEN` |
-
-## 10. 障害時の確認
+## 9. 障害時の確認
 
 | 症状 | 確認 |
 |---|---|
+| WebAppが旧リポジトリを開く | Pagesのdeploy、`app.js`の定数、ブラウザキャッシュ |
 | Actionsが起動しない | Issue作成者または承認者が許可対象か |
-| Private checkout/push失敗 | `PRIVATE_REPO_PAT`の対象と権限 |
+| Private checkout/push失敗 | PATの対象が`jmh8128494-cloud/googlemap`か、ContentsがRead and writeか |
 | Google Places 401/403 | `GOOGLE_MAPS_API_KEY`とPlaces API有効化 |
 | Bright Data 401/403 | `BRIGHTDATA_API_TOKEN` |
-| `zone "..." not found` | SERP対象機能を選んでいないか |
+| `zone "..." not found` | `BRIGHTDATA_ZONE_NAME`とSERPゾーンの契約・有効状態 |
 | Datasetで正常な0件 | `days_back`を30へ広げ、対象期間を確認 |
-| DatasetでActionsエラー | スナップショットまたはダウンロード失敗ログを確認 |
-| Placesで返信が空欄 | 正常。APIが返信を提供しない |
-| レビューCSVの列が不足 | コードリポジトリを15列対応後の版へ更新 |
+| DatasetでActionsエラー | スナップショットまたはダウンロード失敗ログ |
+| レビューCSVの列が不足 | 15列統一後の`main`か確認 |
 
-Actions URL、Issue URL、失敗ステップ、エラー文を記録し、秘密情報は共有しないでください。
+Issue URL、Actions URL、失敗ステップ、エラー文を記録し、Secretsの値は共有しません。
 
-## 11. 移管完了条件
+## 10. 移管完了条件
 
-- 新オーナーの2リポジトリで所有権または必要権限が確認できる
+- `jmh8128494-cloud`が両リポジトリのオーナーになっている
+- `googlemap`はPrivate、`brightdata_ELT`はPublicである
+- 両リポジトリの既定ブランチが`main`である
 - 新オーナー自身のPAT・APIキーへ置き換わっている
-- 固定されたowner/repository名を移管先へ変更済み
-- GitHub Pagesが新しいURLで公開されている
-- 2つの受入テストが成功し、共通15列を確認済み
-- 確認後、旧オーナーのPAT・APIキーを失効している
+- 現行ファイルから旧owner/repositoryの固定参照がなくなっている
+- GitHub Pagesが新URLで公開されている
+- 初回受入対象2処理が成功し、共通15列を確認済みである
+- 受入成功後、旧オーナーのPAT・APIキーを失効している

@@ -2,6 +2,8 @@
 
 WebAppからGitHub Issueを作成し、GitHub Actions経由で施設・レビューCSVをPrivateデータリポジトリへ保存するシステムです。
 
+移管後の運用リポジトリは`jmh8128494-cloud/brightdata_ELT`、公開WebAppは`https://jmh8128494-cloud.github.io/brightdata_ELT/webapp/`です。
+
 ## 現在使用するワークフロー
 
 | WebApp表示 | コマンド | データソース |
@@ -16,7 +18,7 @@ Google Places APIはオーナー返信を提供しません。返信が必要な
 ## リポジトリ構成
 
 - このリポジトリ: Pythonコード、GitHub Actions、WebApp、ドキュメント
-- `mememori8888/googlemap`（Private）: 設定、入力CSV、結果CSV
+- `jmh8128494-cloud/googlemap`（Private）: 設定、入力CSV、結果CSV
 
 主なファイル:
 

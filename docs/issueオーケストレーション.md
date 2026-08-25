@@ -20,9 +20,9 @@ WebApp → Issue opened → parse-and-route → validate-request
 |---|---|---|---|
 | `/run-facility-places` | `facility_places` | `main_places_api.yml` | 使用する |
 | `/run-reviews-sequential` | `reviews_sequential` | `reviews_local_interactive_sequential.yml` | 使用する |
-| `/run-reviews` | `reviews` | `brightdata_reviews.yml` | SERP API利用不可 |
-| `/run-facility` | `facility` | `brightdata_facility.yml`相当処理 | SERP API利用不可 |
-| `/run-reviews-relevance` | `reviews_recent_relevance` | `reviews_recent_with_relevance.yml` | SERP API利用不可 |
+| `/run-reviews` | `reviews` | `brightdata_reviews.yml` | SERPゾーン再開待ち |
+| `/run-facility` | `facility` | `brightdata_facility.yml`相当処理 | SERPゾーン再開待ち |
+| `/run-reviews-relevance` | `reviews_recent_relevance` | `reviews_recent_with_relevance.yml` | SERPゾーン再開待ち |
 
 将来のSERP API再開に備え、ルーティング定義とWebAppの選択肢は残しています。現在の受入テストではSERP依存の3処理を選択しません。
 
@@ -55,11 +55,11 @@ WebApp → Issue opened → parse-and-route → validate-request
 ## データの読書き
 
 - コード: Publicコードリポジトリ
-- 設定・入力・結果: `mememori8888/googlemap`
+- 設定・入力・結果: `jmh8128494-cloud/googlemap`
 - 認証: `PRIVATE_REPO_PAT`
 - 主な結果: `googlemap/results/*.csv`
 
-所有権移転時は、全workflowの`repository: mememori8888/googlemap`と、完了コメント内のPrivateリポジトリURLを移管先へ変更します。
+全workflowのcheckout先と完了コメント内のPrivateリポジトリURLは、移管先の`jmh8128494-cloud/googlemap`へ変更済みです。
 
 ## 入力検証
 

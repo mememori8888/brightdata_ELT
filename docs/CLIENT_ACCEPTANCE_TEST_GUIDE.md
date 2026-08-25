@@ -13,13 +13,13 @@
 | 1 | 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) |
 | 2 | レビュー取得・新仕様逐次実行 | `/run-reviews-sequential` | Bright Data Dataset / Web Scraper API |
 
-次の3つはBright DataのSERP APIを必要とします。Bright Dataから利用不可との回答を受けているため、現在は選択・実行しません。
+次の3つはBright DataのSERP APIを必要とします。直近の確認ではSERPゾーンを利用できなかったため、初回受入テストでは選択・実行しません。将来ゾーンが再開した場合は別途テストします。
 
 - レビュー取得 (Reviews): `/run-reviews`
 - 施設データ取得 (Facility): `/run-facility`
 - レビュー取得・30日関連度ランク付き: `/run-reviews-relevance`
 
-将来SERP APIが再開できる可能性があるため、WebAppにはこの3項目も残しています。ただし、現在の受入テストでは選択しません。
+将来SERP APIが再開できる可能性があるため、WebAppにはこの3項目も残しています。
 
 ## 2. 事前準備
 
@@ -37,8 +37,7 @@ API費用と同時pushの競合を避けるため、ワークフローは1件ず
 ## 3. 共通の実行方法
 
 1. 公開WebAppを開く
-   - 現行テスト環境: `https://mememori8888.github.io/demo/webapp/`
-   - 移管後: `https://<GitHubアカウント>.github.io/<コードリポジトリ>/webapp/`
+   - 移管後の環境: `https://jmh8128494-cloud.github.io/brightdata_ELT/webapp/`
 2. 「実行するワークフロー」を選択する
 3. この手順書に記載したテスト値を設定する
 4. 「GitHubでIssueを作成」を押す
@@ -168,14 +167,14 @@ CSVでは次を確認します。
 
 ## 9. 開発側の確認実績
 
-2026年8月25日のWebApp経路確認:
+2026年8月25日に、移管元環境のWebApp経路で次を確認しています。
 
-| 対象 | Issue / Actions | 結果 |
-|---|---|---|
-| Google Places API版 | [Issue #23](https://github.com/mememori8888/demo/issues/23) / [run 32811243800](https://github.com/mememori8888/demo/actions/runs/32811243800) | 施設20件、レビュー80件を保存 |
-| Dataset逐次レビュー | [Issue #27](https://github.com/mememori8888/demo/issues/27) / [run 32813489837](https://github.com/mememori8888/demo/actions/runs/32813489837) | レビュー5件を保存 |
+| 対象 | 移管元での結果 |
+|---|---|
+| Google Places API版 | 施設20件、レビュー80件を保存 |
+| Dataset逐次レビュー | レビュー5件を保存 |
 
-15列統一後は、ローカルの自動テストでGoogle Places、Dataset、SERPの列定義とCSV出力を確認しています。ユーザー指示により、修正後のActions再実行は行っていません。SERPは契約上利用不可のため、実API通信ではなくCSV出力単体テストのみです。
+15列統一後は、ローカルの自動テストでGoogle Places、Dataset、SERPの列定義とCSV出力を確認しています。修正後の実API Actions再実行は行っていないため、移管後に本書の2テストを実施してください。SERPは実API通信ではなくCSV出力単体テストのみです。
 
 ## 10. よくあるエラー
 

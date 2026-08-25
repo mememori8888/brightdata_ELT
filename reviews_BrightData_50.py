@@ -102,7 +102,7 @@ def create_github_issue(title, body, labels=None):
         bool: 成功した場合True、失敗した場合False
     """
     github_token = os.getenv('GITHUB_TOKEN')
-    repo_owner = os.getenv('GITHUB_REPOSITORY_OWNER', 'mememori8888')
+    repo_owner = os.getenv('GITHUB_REPOSITORY_OWNER', 'jmh8128494-cloud')
     repo_name = os.getenv('GITHUB_REPOSITORY_NAME', 'googlemap')
     
     if not github_token:

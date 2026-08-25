@@ -24,7 +24,7 @@ jobs:
       - name: Checkout private data
         uses: actions/checkout@v4
         with:
-          repository: mememori8888/googlemap
+          repository: jmh8128494-cloud/googlemap
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-data
           sparse-checkout: |

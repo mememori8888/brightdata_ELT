@@ -1,6 +1,6 @@
 // GitHubリポジトリ情報
-const GITHUB_OWNER = 'mememori8888';
-const GITHUB_REPO = 'demo';
+const GITHUB_OWNER = 'jmh8128494-cloud';
+const GITHUB_REPO = 'brightdata_ELT';
 const GITHUB_BRANCH = 'main';
 const DATA_REPO = 'googlemap';
 const DATA_BRANCH = 'main';

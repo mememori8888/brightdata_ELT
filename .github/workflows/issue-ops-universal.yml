@@ -62,8 +62,7 @@ jobs:
           if [[ "$EVENT_NAME" == "issue_comment" ]]; then
             if [[ "$COMMENT_BODY" == *"/承認"* ]]; then
                 if [[ "$COMMENT_AUTHOR_ASSOC" == "OWNER" ]] ||
-                  [[ "$COMMENT_USER" == "jmh8128494-cloud" ]] ||
-                  [[ "$COMMENT_USER" == "asahi26366" ]]; then
+                  [[ ",$AUTO_RUN_USERS," == *",$COMMENT_USER,"* ]]; then
                 echo "should_run=true" >> $GITHUB_OUTPUT
                 echo "✅ Approved by: $COMMENT_USER ($COMMENT_AUTHOR_ASSOC)"
               else
@@ -288,7 +287,7 @@ jobs:
       - name: Checkout private data
         uses: actions/checkout@v4
         with:
-          repository: mememori8888/googlemap
+          repository: jmh8128494-cloud/googlemap
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-data
           sparse-checkout: |
@@ -595,7 +594,7 @@ jobs:
       - name: Checkout private data
         uses: actions/checkout@v4
         with:
-          repository: mememori8888/googlemap
+          repository: jmh8128494-cloud/googlemap
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-data
 
@@ -692,7 +691,7 @@ jobs:
             const shouldExecute = '${{ needs.validate-request.outputs.should_execute }}';
             const validationReason = `${{ needs.validate-request.outputs.reason }}`;
             
-            const privateRepoUrl = 'https://github.com/mememori8888/googlemap';
+            const privateRepoUrl = 'https://github.com/jmh8128494-cloud/googlemap';
             const artifactUrl = `${context.payload.repository.html_url}/actions/runs/${context.runId}#artifacts`;
             
             // Issueから解析されたパラメータを取得

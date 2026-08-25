@@ -10,11 +10,11 @@
 |---|---|
 | Google Places API施設・レビュー `/run-facility-places` | 使用する |
 | Bright Data Dataset逐次レビュー `/run-reviews-sequential` | 使用する |
-| SERPレビュー `/run-reviews` | SERP API利用不可のため使用しない |
-| SERP施設 `/run-facility` | SERP API利用不可のため使用しない |
-| Dataset + SERP関連度 `/run-reviews-relevance` | SERP API利用不可のため使用しない |
+| SERPレビュー `/run-reviews` | SERPゾーン再開後にテストする |
+| SERP施設 `/run-facility` | SERPゾーン再開後にテストする |
+| Dataset + SERP関連度 `/run-reviews-relevance` | SERPゾーン再開後にテストする |
 
-最新の検証済みコードとPagesは`demo`にあり、`brightdata_ELT`は2026-08-23時点のため、移管に使う場合は最新版同期とPages設定が必要です。レビューCSVは3取得処理とも共通15列へ統一済みです。Google Places APIが返さない`オーナー返信`・関連度3列・`レビュー要約`は、列を保持したまま空欄で出力します。
+2026年8月25日に最新コードを`brightdata_ELT`へ同期し、移管先`jmh8128494-cloud`向けのowner・repository参照へ変更しました。所有権移転後にPages設定と新オーナーのSecrets登録が必要です。レビューCSVは3取得処理とも共通15列へ統一済みです。Google Places APIが返さない`オーナー返信`・関連度3列・`レビュー要約`は、列を保持したまま空欄で出力します。
 
 ## 目的
 
@@ -36,9 +36,9 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API / Google Places A
 |---|---|---|
 | Pythonコード・GitHub Actions | Google Places API版とDataset逐次版の実行完了を確認 | 受入対象2経路を確認済み |
 | WebappからIssueを作成 | Issue #23・#27で入出力から保存まで確認 | 開発側テスト完了 |
-| コード・設定・データの分離 | `demo`と`googlemap`に分散 | 1つの非公開リポジトリへ統合 |
-| Bright Data接続 | 過去に成功記録あり | 受領者アカウントで再確認 |
-| 最新のレビュー処理 | 2026-08-11に一部チャンク失敗 | 原因確認または既知問題として合意 |
+| コード・設定・データの分離 | `brightdata_ELT`と`googlemap`の2リポジトリ | 現行構成として維持 |
+| Bright Data接続 | Dataset逐次版の成功記録あり | 新オーナーの認証情報で再確認 |
+| 最新のレビュー処理 | 正常な0件とAPI失敗を区別するよう修正 | 移管後に小規模再確認 |
 | 依存スクリプト | 受入対象2経路を実行前検証 | 対象外の旧機能と分離済み |
 | 新仕様Web Scraper API | Dataset逐次版で実データ保存まで確認 | 利用可能 |
 | 運用手順・障害対応 | クライアント向け2文書へ集約 | 更新済み |

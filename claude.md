@@ -1,25 +1,22 @@
-必ずフェイルセールでフールプルーフな設計にしてください。
+# 開発時の前提
 
-pythonプログラムを作成する際に、デザインパターンは適したものを適用してください。
+フェイルセーフかつ誤操作しにくい設計を優先し、既存の外部動作を保護してから変更する。
 
-ワークフローは
-webapp→issue→github actions起動→データ出力
+## 実行経路
 
+```text
+WebApp → GitHub Issue → GitHub Actions → API処理 → googlemap/results/
+```
 
-***issue0-ops-universal.ymlの機能を変更する。***
+中心となるオーケストレーターは`.github/workflows/issue-ops-universal.yml`。
 
-以下のプログラムが動くようにする。
-/workspaces/demo/facility_BrightData_20.py　**serp apiのやつ
-/workspaces/demo/reviews_BrightData_50.py　　**serp apiのやつ
-/workspaces/demo/run_reviews_local_interactive.py　**新仕様のweb scraper api
-/workspaces/demo/faiility_brightdata_new_version.py　**新仕様のweb scraper api 
+## 主な処理
 
-新規に作るファイル
-faiility_brightdata_new_version.py
-reviews_brightData_new_version.py > これは/workspaces/demo/run_reviews_local_interactive.py　を少し変更する。
+- `main.py`: Google Places APIによる施設・基本レビュー取得
+- `run_reviews_local_interactive.py` → `get_reviews_from_dental_new.py`: Bright Data Datasetによる逐次レビュー取得
+- `facility_BrightData_20.py`: Bright Data SERP施設取得。SERPゾーン再開後に使用
+- `reviews_BrightData_50.py`: Bright Data SERPレビュー取得。SERPゾーン再開後に使用
+- `faiility_brightdata_new_version.py`: Bright Data施設取得ラッパー
+- `reviews_brightData_new_version.py`: Bright Dataレビュー取得ラッパー
 
-
-
-
-
-
+絶対パスや特定開発環境のワークスペース名をコードへ固定しない。運用・受入条件は`docs/CLIENT_HANDOVER_GUIDE.md`と`docs/CLIENT_ACCEPTANCE_TEST_GUIDE.md`を正本とする。

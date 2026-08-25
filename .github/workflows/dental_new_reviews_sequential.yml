@@ -81,7 +81,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: mememori8888/googlemap
+          repository: jmh8128494-cloud/googlemap
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-data
           sparse-checkout: |
@@ -145,7 +145,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: mememori8888/googlemap
+          repository: jmh8128494-cloud/googlemap
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-data
           sparse-checkout: |
@@ -209,7 +209,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: mememori8888/googlemap
+          repository: jmh8128494-cloud/googlemap
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-data
           sparse-checkout: |
