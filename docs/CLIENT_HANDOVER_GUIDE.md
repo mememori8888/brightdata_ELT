@@ -41,8 +41,10 @@ Issueへ完了コメント
 ## Step 2: 必要なアカウント・契約を用意する
 
 - Bright Dataのアカウント（[公式サイト](https://get.brightdata.com/mam10)）
-  - 施設取得・レビュー取得に使う「SERP API」「Web Scraper API」を利用できる契約が必要です
+  - レビュー取得に使う「Web Scraper API」を利用できる契約が必要です
   - 利用料金はBright Data側との契約に基づき発生します。開発費とは別に、ご自身の名義・支払い方法で契約してください
+
+現在、Bright DataのSERP APIは利用できないため、SERP APIを使う「施設データ取得 (Facility)」と「30日関連度ランク付き」は実行対象外です。施設取得にはGoogle Places API版を使用してください。
 
 ---
 
@@ -60,7 +62,7 @@ https://github.com/<あなたのアカウント>/brightdata_ELT/settings/secrets
 |---|---|---|
 | `PRIVATE_REPO_PAT` | ご自身のGitHubアカウントで発行するPersonal Access Token。Repository accessに`googlemap`を含め、`Contents: Read and write`権限を付与する | 必須 |
 | `BRIGHTDATA_API_TOKEN` | Bright Dataのダッシュボードで発行するAPIトークン | 必須 |
-| `BRIGHTDATA_ZONE_NAME` | Bright Data側で有効化したSERP APIのゾーン名（例: `serp_api2`） | 必須 |
+| `BRIGHTDATA_ZONE_NAME` | SERP API機能を将来再開する場合のゾーン名。現在の受入テストでは使用しない | 現在は不要 |
 | `GOOGLE_MAPS_API_KEY` | Google CloudでPlaces APIを有効化したAPIキー。Google Places API版を実行する場合のみ使用 | Google Places API版で必須 |
 | `GEMINI_API_KEY` | Gemini APIを使う場合のみ発行（現状コード側で無効化されているため未設定でも動作します） | 任意 |
 
@@ -92,7 +94,9 @@ Playwrightを使った関連度取得機能は現在使用しないため、`GOO
 
 ## Step 5: 小規模テストを実行する
 
-1. `docs/webapp/index.html`をブラウザで開く
+詳しい入力値、確認項目、結果報告方法は[`CLIENT_ACCEPTANCE_TEST_GUIDE.md`](CLIENT_ACCEPTANCE_TEST_GUIDE.md)を参照してください。
+
+1. 公開Webapp `https://<あなたのアカウント>.github.io/brightdata_ELT/webapp/` をブラウザで開く
 2. 少人数分（10件程度）のテスト用CSVで、レビュー取得または施設取得を選択する
    - Google Places API版では、まず「設定プリセット」から通常用またはテスト用を選択する
    - プリセットから検索キーワード、カテゴリ、住所CSV、除外GID、各出力CSVが自動設定されるため、必要な項目だけ変更する
@@ -110,8 +114,9 @@ Playwrightを使った関連度取得機能は現在使用しないため、`GOO
 
 | 取得方法 | Issueコマンド | 必要なSecret | オーナー返信 |
 |---|---|---|---|
-| Bright Data（Web Scraper API / SERP API） | `/run-reviews`系 | `BRIGHTDATA_API_TOKEN` 等 | 取得できる |
+| Bright Data（Web Scraper API） | `/run-reviews`、`/run-reviews-sequential` | `BRIGHTDATA_API_TOKEN` | 取得できる |
 | Google Places API（公式API） | `/run-facility-places` | `GOOGLE_MAPS_API_KEY` | **取得できない**（Google公式APIの仕様上の制限） |
+| Bright Data（SERP API） | `/run-facility`、`/run-reviews-relevance` | 現在利用不可 | 実行しない |
 
 オーナー返信の情報が必要な場合は、必ずBright Data経由（`/run-reviews`系）を使用してください。Google Places API経由で取得したレビューは、`オーナー返信`列が常に空欄になります。これはシステムの不具合ではなく、Google Places APIが公式にオーナー返信を提供していないためです。
 
@@ -124,7 +129,7 @@ Playwrightを使った関連度取得機能は現在使用しないため、`GOO
 | Actionsがそもそも起動しない | Issue作成者・コメント投稿者が、Step 4の許可対象になっているか |
 | `private-data`のcheckoutで失敗する | `PRIVATE_REPO_PAT`が正しく設定されているか、`googlemap`への書き込み権限があるか |
 | Bright Data呼び出しで401/403エラー | `BRIGHTDATA_API_TOKEN`が正しいか、有効期限切れでないか |
-| SERP APIで502エラー | Bright Data側で該当ゾーンが有効化されているか |
+| `zone "..." not found` | 現在SERP APIは利用対象外です。施設取得はGoogle Places API版を使用する |
 | 結果が`googlemap`に反映されない | Actionsのログで「Save results to private repository」ステップのエラーを確認 |
 
 ---

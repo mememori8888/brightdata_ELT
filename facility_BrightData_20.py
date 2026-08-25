@@ -193,6 +193,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
         # ★ JSON応答（dict）をそのまま格納するリストに変更
         all_json_responses = []
         total_requests = 0
+        successful_requests = 0
         
         # max_requests回のリクエストで最大20件×max_requests件取得
         for i in range(max_requests):
@@ -338,6 +339,8 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
             if not page_success:
                 logging.error(f"ページ取得失敗 (リトライ上限超過) クエリ: {query}, start={start}")
                 print(f"ERROR: ページ取得失敗 (リトライ上限超過) クエリ: {query}, start={start}")
+            else:
+                successful_requests += 1
             
             # 空の応答だった場合、またはページ取得に失敗した場合は、次のページ(start=20など)に進まずループを抜ける
             if response_was_empty or not page_success:
@@ -348,7 +351,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
                 break 
 
         # ★ all_json_responses (JSON[dict]のリスト) を返す
-        return all_json_responses, total_requests
+        return all_json_responses, total_requests, successful_requests
 
 
     # ログ設定
@@ -485,6 +488,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
     fid_rows = []  # FID情報を格納
     duplicate_analysis_rows = []  # 重複分析用：全取得データ（重複含む）
     total_requests_agg = 0
+    successful_requests_agg = 0
     total = len(adress_list)
     completed = 0
     start_time = time.time()
@@ -610,7 +614,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
         local_fid_rows = []  # FID情報を格納
 
         if 'a b' in addr:
-            return local_rows, local_fid_rows, 0 # リクエスト数は0
+            return local_rows, local_fid_rows, 0, 0 # リクエスト数は0
 
         # ★ /request エンドポイントは クエリ全体を渡す
         search_query = f"{addr} {base_query}".strip()
@@ -620,7 +624,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
         max_requests_per_query = int(os.environ.get('MAX_REQUESTS', '1'))
         
         # ★ json_responses は [dict, dict, ...] (ページごとのJSON応答のリスト)
-        json_responses, query_request_count = search_places(
+        json_responses, query_request_count, query_success_count = search_places(
             api_token=api_token, 
             zone_name=zone_name_for_thread, 
             query=search_query, # "鳥取県 鳥取市 歯医者"
@@ -775,7 +779,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
             duplicate_row.append('除外GID' if gid in exclude_gids else ('既存' if gid in existing_gids else '新規'))
             local_rows.append((row, duplicate_row))
         
-        return local_rows, local_fid_rows, query_request_count
+        return local_rows, local_fid_rows, query_request_count, query_success_count
 
     # 並列実行
     progress_path = os.path.join(results_dir, 'progress.txt')
@@ -804,7 +808,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
                 break
             
             try:
-                local_rows, local_fid_rows, req_count = process_address(addr, zone_name)
+                local_rows, local_fid_rows, req_count, success_count = process_address(addr, zone_name)
                 
                 # process_address が返した local_rows を使って all_rows を更新
                 for row_tuple in local_rows:
@@ -823,6 +827,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
                 with progress_lock:
                     completed += 1
                     total_requests_agg += req_count
+                    successful_requests_agg += success_count
                     # request_log には、CSVに追加される件数 (len(local_rows)) を記録
                     request_log.append({'address': addr, 'requests': req_count, 'found': len(local_rows)})
                 
@@ -857,7 +862,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
             for future in as_completed(futures):
                 addr = futures[future]
                 try:
-                    local_rows, local_fid_rows, req_count = future.result()
+                    local_rows, local_fid_rows, req_count, success_count = future.result()
                     for row_tuple in local_rows:
                         if isinstance(row_tuple, tuple):
                             all_rows.append(row_tuple[0])
@@ -874,6 +879,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
                     with progress_lock:
                         completed += 1
                         total_requests_agg += req_count
+                        successful_requests_agg += success_count
                         request_log.append({'address': addr, 'requests': req_count, 'found': len(local_rows)})
                     
                     # 途中保存チェック
@@ -886,6 +892,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
                     completed += 1 # エラーでもカウントを進める
                     local_rows = [] # エラー時は空リストを設定
                     req_count = 0   # エラー時はリクエスト数0を設定
+                    success_count = 0
                 
                 elapsed = time.time() - start_time
                 if completed > 0:
@@ -898,6 +905,16 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
                     pf.write(f"total: {total}\n")
                     pf.write(f"completed: {completed}\n")
     
+    # APIが全件失敗した場合、ヘッダーだけのCSVを正常成果物として保存しない。
+    # 200応答で検索結果0件だった場合は successful_requests_agg > 0 なので正常扱いになる。
+    if total_requests_agg > 0 and successful_requests_agg == 0:
+        message = (
+            "Bright Data APIの全リクエストが失敗しました。"
+            "APIトークン、ゾーン名、契約状態を確認してください。"
+        )
+        logging.error(message)
+        raise RuntimeError(message)
+
     #
     # facility_file: write new facilities
     #
