@@ -1,6 +1,6 @@
 # 引き渡しロードマップ
 
-更新日: 2026-08-22
+更新日: 2026-08-25
 
 ## 目的
 
@@ -9,9 +9,9 @@
 移行後の対象となる処理経路:
 
 ```text
-Webapp → GitHub Issue → GitHub Actions → Bright Data API
+Webapp → GitHub Issue → GitHub Actions → Bright Data API / Google Places API
                                       ↓
-                              results/
+                              googlemap/results/
                                       ↓
                               Issueへ完了通知
 ```
@@ -20,8 +20,8 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 
 | 項目 | 現状 | 判定 |
 |---|---|---|
-| Pythonコード・GitHub Actions | リポジトリに存在 | 要実行確認 |
-| WebappからIssueを作成 | 実装あり | 要受入テスト |
+| Pythonコード・GitHub Actions | Google Places API版でAPIレスポンス取得まで確認 | 本体処理の完了テストが必要 |
+| WebappからIssueを作成 | Issue #22でプリセット・入出力JSONを生成済み | Test A完了 |
 | コード・設定・データの分離 | `demo`と`googlemap`に分散 | 1つの非公開リポジトリへ統合 |
 | Bright Data接続 | 過去に成功記録あり | 受領者アカウントで再確認 |
 | 最新のレビュー処理 | 2026-08-11に一部チャンク失敗 | 原因確認または既知問題として合意 |
@@ -66,6 +66,34 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 - 受領者アカウントによるWebappからのIssue作成
 
 上記は、GitHub権限、受領者のSecrets、Bright Dataアカウント、テスト用データが必要であり、ローカルのコード検証だけでは完了扱いにしない。
+
+## 2026-08-25 Google Places API小規模受入テスト（Issue #22）
+
+受領者がWebappから「グループホーム（テスト）」を選択し、実際のIssue・Actions実行を行った。
+
+- Issue: [#22 Facility Places Job](https://github.com/mememori8888/demo/issues/22)
+- Actions: [run 32808794059](https://github.com/mememori8888/demo/actions/runs/32808794059)
+- 使用コード: `f733fd4`
+- 設定: `settings/care_group-home_test.json`
+- 入力: `settings/address_test.csv`
+- 出力予定: `results/care_group-home_test.csv`、`results/care_group-home_test_review.csv`、各増分CSV
+
+### 確認できたこと
+
+- Webappの設定プリセットから検索キーワード、住所CSV、除外GID、各出力先がIssue JSONへ正しく反映された
+- `parse-and-route`と`validate-request`は成功し、権限、Privateリポジトリ、設定JSON、入力CSV、除外GID CSVの検証を通過した
+- `GOOGLE_MAPS_API_KEY`はSecretsから取得でき、`main.py`は検索を開始してGoogle Places APIのレスポンスを1件以上受信した
+- 後処理のartifact upload、ファイル一覧更新、Privateリポジトリへのpushステップは実行された
+- `googlemap`へ[commit `bf0e9e6c`](https://github.com/mememori8888/googlemap/commit/bf0e9e6c1351d33f2e8b21d3ffd3ae4f9f076356)が作成され、`PRIVATE_REPO_PAT`の書き込み権限が機能することを確認した
+
+### 未完了・次回確認項目
+
+- Actions全体は`cancelled`。`Run Google Places API facility scraper`が処理完了前にキャンセルされた
+- `googlemap`への上記commitで保存されたのは`results/app.log`のみで、予定した4つの結果CSVは作成されていない
+- Issueにはキャンセル通知が投稿され、Issueはopenのまま。完了通知と自動closeは未確認
+- 次回は住所CSVを実際の小数件に限定し、本体処理をキャンセルせず完了させ、結果CSV・完了コメント・Issue closeまで確認する
+
+受入判定: **Test A完了、Test B完了、Test Cは部分成功（API接続・読み書き経路は確認済み、結果CSV完成は未確認）**。
 
 ## 統合先リポジトリ（確定）
 
@@ -134,9 +162,9 @@ Webapp → GitHub Issue → GitHub Actions → Bright Data API
 `/run-facility-places`コマンドを新設し、Webappから`main_places_api.yml`（Google Places API版）を実行できるようにした。
 
 - `.github/workflows/issue-ops-universal.yml`: コマンド検出（`/run-facility`より先に判定）、必須ファイル検証、`config_file`存在チェック、`run-facility-places`ジョブ（`main_places_api.yml`をworkflow_call）、完了報告への統合
-- `docs/webapp/index.html`・`docs/webapp/app.js`: ワークフロー選択肢・専用フォーム・Issue本文生成を追加
+- `docs/webapp/index.html`・`docs/webapp/app.js`: ワークフロー選択肢・専用フォーム・Issue本文生成を追加。2026-08-25に設定プリセット化し、検索キーワード、`includedType`、住所CSV、除外GID、施設・レビュー・増分出力をプルダウンから選択可能にした
 - `main.py`のレビュー処理には、開発者自身が残した`#ここがおかしいよ`という未解決の既知課題（既存レビューの更新ロジックが不完全）がある。今回は組み込みのみ行い、このロジック自体は未修正
-- `main.py`が要求する設定ファイルは「タスクのリスト」形式（`settings/settings.json`と同じ構造）のみ対応。`care_*.json`等の単一タスク形式との互換性は未確認のため、Webapp側では固定で`settings/settings.json`を指定する設計とした
+- `care_*.json`も`settings/settings.json`と同じタスクリスト形式であることを確認。2026-08-25のIssue #22で`settings/care_group-home_test.json`の読み込み、検証、`main.py`実行開始まで実機確認した
 
 ### Google Places APIにオーナー返信データが存在しないことの確認（2026-08-23）
 
@@ -387,6 +415,8 @@ brightdata_ELT/
 
 期待結果: Issueが正しいコマンドとJSONを含んで作成される。
 
+**2026-08-25結果: 完了。** Issue #22で設定プリセットと入出力JSONを含む`/run-facility-places`が作成された。
+
 ### Test B: Issueルーター
 
 - Issue作成を検知する
@@ -396,6 +426,8 @@ brightdata_ELT/
 
 期待結果: 不正入力は処理前に停止し、正常入力は対象ワークフローへ進む。
 
+**2026-08-25結果: 完了。** `parse-and-route`、`validate-request`ともに成功し、Google Places APIジョブへ分岐した。
+
 ### Test C: 小規模データ処理
 
 - テスト用CSV 10件程度を用意する
@@ -403,6 +435,8 @@ brightdata_ELT/
 - `googlemap/results/`に結果を保存する
 - 結果がコミットされることを確認する
 - Issueに完了コメントが投稿されることを確認する
+
+**2026-08-25結果: 部分成功。** APIレスポンス受信と`googlemap`への書き込みは確認したが、実行が途中でキャンセルされ、結果CSVと完了通知は未確認。再テストが必要。
 
 ### Test D: エラー処理
 
