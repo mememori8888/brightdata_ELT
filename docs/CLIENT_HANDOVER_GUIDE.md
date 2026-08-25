@@ -128,10 +128,21 @@ GitHub公式の[Fine-grained token作成画面](https://github.com/settings/pers
 
 `GITHUB_TOKEN`はActionsが自動発行するため登録不要です。
 
+### Actions・Issues権限との違い
+
+ActionsとIssuesの機能は必要ですが、`PRIVATE_REPO_PAT`へ`Actions`や`Issues`の権限を追加する必要はありません。認証の役割を次のように分けています。
+
+| 認証 | 対象リポジトリ | 必要な権限 | 用途 |
+|---|---|---|---|
+| `PRIVATE_REPO_PAT` | `jmh8128494-cloud/googlemap` | `Contents: Read and write` | Private入力のcheckout、結果CSVのpush |
+| Actionsが自動発行する`GITHUB_TOKEN` | `jmh8128494-cloud/brightdata_ELT` | workflow記載の`issues: write`、`actions: read`、`contents: write` | Issueへのコメント・クローズ、Actions情報の参照、コードリポジトリ内の処理 |
+
+`GITHUB_TOKEN`の権限は`.github/workflows/issue-ops-universal.yml`冒頭の`permissions`で宣言済みです。利用者がtokenを発行してSecretへ登録する必要はありません。`PRIVATE_REPO_PAT`へ余分な`Actions`・`Issues`権限を付けてもIssue処理には使われず、漏えい時の影響範囲だけが広がります。
+
 ### リポジトリ設定も確認する
 
-- `brightdata_ELT`でIssuesが有効になっている
-- `brightdata_ELT`でGitHub Actionsが有効になっている
+- `brightdata_ELT`の`Settings` → `General` → `Features`でIssuesが有効になっている
+- `brightdata_ELT`の`Settings` → `Actions` → `General`でGitHub Actionsが有効になっている
 - 組織・リポジトリポリシーがworkflowの`contents: write`と`issues: write`を禁止していない
 - `googlemap/main`のbranch ruleがPATによる結果CSVのpushを拒否しない
 - `googlemap`をPublicへ変更していない
