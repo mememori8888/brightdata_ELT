@@ -89,6 +89,64 @@ def classify_results_file(filename, size=0, mtime=0):
         'last_modified': mtime,
     }
 
+
+def _normalize_csv_path(value, root):
+    if not value or not isinstance(value, str):
+        return ''
+    normalized = value.replace('\\', '/').strip()
+    if not normalized.startswith(f'{root}/'):
+        normalized = f'{root}/{normalized}'
+    if not normalized.lower().endswith('.csv'):
+        normalized += '.csv'
+    return normalized
+
+
+def extract_places_profiles(settings_dir):
+    """Google Places用設定JSONからWebappに公開できる項目だけを抽出する。"""
+    profiles = []
+    if not os.path.exists(settings_dir):
+        return profiles
+
+    for file_path in sorted(glob.glob(os.path.join(settings_dir, '*.json'))):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as source:
+                payload = json.load(source)
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"⚠️  設定プロファイルを読み込めません: {file_path}: {exc}")
+            continue
+
+        tasks = payload if isinstance(payload, list) else []
+        for index, task in enumerate(tasks):
+            if not isinstance(task, dict) or not task.get('query'):
+                continue
+
+            filename = os.path.basename(file_path)
+            task_name = str(task.get('task_name') or f'task-{index + 1}')
+            primary_query = str(task['query']).split(' -', 1)[0]
+            profile_hint = f"{filename} {task_name} {task.get('address_csv_path', '')}".lower()
+            if 'test' in profile_hint:
+                mode = 'テスト'
+            elif 'small' in profile_hint:
+                mode = '小規模'
+            else:
+                mode = '通常'
+            profiles.append({
+                'id': f'settings/{filename}::{task_name}',
+                'label': f'{primary_query}（{mode}）',
+                'config_file': f'settings/{filename}',
+                'task_name': task_name,
+                'query': task['query'],
+                'included_type': task.get('includedType') or '',
+                'address_csv': _normalize_csv_path(task.get('address_csv_path'), 'settings'),
+                'facility_file': _normalize_csv_path(task.get('facility_file'), 'results'),
+                'review_file': _normalize_csv_path(task.get('review_file'), 'results'),
+                'update_facility_file': _normalize_csv_path(task.get('update_facility_path'), 'results'),
+                'update_review_file': _normalize_csv_path(task.get('update_review_path'), 'results'),
+                'exclude_gids_file': _normalize_csv_path(task.get('exclude_gids_path'), 'settings'),
+            })
+
+    return profiles
+
 def _detect_data_root():
     """
     データルートを検出する（フェイルセーフ設計）
@@ -147,6 +205,7 @@ def update_file_list():
             settings_entries.append(classify_settings_file(filename))
     settings_json_files.sort()
     settings_entries.sort(key=lambda entry: entry['name'])
+    places_profiles = extract_places_profiles(settings_dir)
     
     # resultsディレクトリのCSVファイルを取得
     results_files = []
@@ -171,11 +230,13 @@ def update_file_list():
             json.dump({
                 'settings': settings_entries,
                 'results': results_files,
+                'places_profiles': places_profiles,
                 'generated_by': 'update_file_list.py',
             }, f, indent=2, ensure_ascii=False)
         print(f"✅ File list saved to {output_file}")
         print(f"   - Settings CSV files: {len(settings_csv_files)}")
         print(f"   - Settings JSON files: {len(settings_json_files)}")
+        print(f"   - Google Places profiles: {len(places_profiles)}")
         print(f"   - Results files: {len(results_filenames)}")
     except Exception as e:
         print(f"❌ Error saving file list: {e}")

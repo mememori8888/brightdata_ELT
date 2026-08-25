@@ -747,5 +747,105 @@
       "last_modified": 1781178282.7939868
     }
   ],
+  "places_profiles": [
+    {
+      "id": "settings/care_group-home.json::search_group-home",
+      "label": "グループホーム（通常）",
+      "config_file": "settings/care_group-home.json",
+      "task_name": "search_group-home",
+      "query": "グループホーム -不動産 -求人 -紹介センター -デイサービス -訪問 -居宅 サービス付き高齢者向け住宅 -老人ホーム",
+      "included_type": "",
+      "address_csv": "settings/address.csv",
+      "facility_file": "results/care_group-home.csv",
+      "review_file": "results/care_group-home_review.csv",
+      "update_facility_file": "results/add_care_group-home.csv",
+      "update_review_file": "results/add_care_group-home_review.csv",
+      "exclude_gids_file": "settings/exclude_gids.csv"
+    },
+    {
+      "id": "settings/care_group-home_test.json::search_group-home_test",
+      "label": "グループホーム（テスト）",
+      "config_file": "settings/care_group-home_test.json",
+      "task_name": "search_group-home_test",
+      "query": "グループホーム -不動産 -求人 -紹介センター -デイサービス -訪問 -居宅 サービス付き高齢者向け住宅 -老人ホーム",
+      "included_type": "",
+      "address_csv": "settings/address_test.csv",
+      "facility_file": "results/care_group-home_test.csv",
+      "review_file": "results/care_group-home_test_review.csv",
+      "update_facility_file": "results/add_care_group-home_test.csv",
+      "update_review_file": "results/add_care_group-home_test_review.csv",
+      "exclude_gids_file": "settings/exclude_gids.csv"
+    },
+    {
+      "id": "settings/care_roujin-home.json::search_roujin-home",
+      "label": "老人ホーム（通常）",
+      "config_file": "settings/care_roujin-home.json",
+      "task_name": "search_roujin-home",
+      "query": "老人ホーム -不動産 -求人 -紹介センター -デイサービス -訪問 -居宅 -グループホーム -サービス付き高齢者向け住宅",
+      "included_type": "",
+      "address_csv": "settings/address.csv",
+      "facility_file": "results/care_roujin-home.csv",
+      "review_file": "results/care_roujin-home_review.csv",
+      "update_facility_file": "results/add_care_roujin-home.csv",
+      "update_review_file": "results/add_care_roujin-home_review.csv",
+      "exclude_gids_file": "settings/exclude_gids.csv"
+    },
+    {
+      "id": "settings/care_roujin-home_test.json::search_roujin-home_test",
+      "label": "老人ホーム（テスト）",
+      "config_file": "settings/care_roujin-home_test.json",
+      "task_name": "search_roujin-home_test",
+      "query": "老人ホーム -不動産 -求人 -紹介センター -デイサービス -訪問 -居宅 -グループホーム -サービス付き高齢者向け住宅",
+      "included_type": "",
+      "address_csv": "settings/address_test.csv",
+      "facility_file": "results/care_roujin-home_test.csv",
+      "review_file": "results/care_roujin-home_test_review.csv",
+      "update_facility_file": "results/add_care_roujin-home_test.csv",
+      "update_review_file": "results/add_care_roujin-home_test_review.csv",
+      "exclude_gids_file": "settings/exclude_gids.csv"
+    },
+    {
+      "id": "settings/care_sakouju.json::search_sakouju",
+      "label": "サービス付き高齢者向け住宅（通常）",
+      "config_file": "settings/care_sakouju.json",
+      "task_name": "search_sakouju",
+      "query": "サービス付き高齢者向け住宅 -不動産 -求人 -紹介センター -デイサービス -訪問 -居宅 -グループホーム -老人ホーム",
+      "included_type": "",
+      "address_csv": "settings/address.csv",
+      "facility_file": "results/care_sakouju.csv",
+      "review_file": "results/care_sakouju_review.csv",
+      "update_facility_file": "results/add_care_sakouju.csv",
+      "update_review_file": "results/add_care_sakouju_review.csv",
+      "exclude_gids_file": "settings/exclude_gids.csv"
+    },
+    {
+      "id": "settings/care_sakouju_test.json::search_sakouju_test",
+      "label": "サービス付き高齢者向け住宅（テスト）",
+      "config_file": "settings/care_sakouju_test.json",
+      "task_name": "search_sakouju_test",
+      "query": "サービス付き高齢者向け住宅 -不動産 -求人 -紹介センター -デイサービス -訪問 -居宅 -グループホーム -老人ホーム",
+      "included_type": "",
+      "address_csv": "settings/address_test.csv",
+      "facility_file": "results/care_sakouju_test.csv",
+      "review_file": "results/care_sakouju_test_review.csv",
+      "update_facility_file": "results/add_care_sakouju_test.csv",
+      "update_review_file": "results/add_care_sakouju_test_review.csv",
+      "exclude_gids_file": "settings/exclude_gids.csv"
+    },
+    {
+      "id": "settings/settings.json::search",
+      "label": "歯科医院（小規模）",
+      "config_file": "settings/settings.json",
+      "task_name": "search",
+      "query": "歯科医院",
+      "included_type": "",
+      "address_csv": "settings/adress_small.csv",
+      "facility_file": "results/dental_nishinomiya-kitaguchi.csv",
+      "review_file": "results/dental_review.csv",
+      "update_facility_file": "results/add_data.csv",
+      "update_review_file": "results/add_review.csv",
+      "exclude_gids_file": "settings/exclude_gids.csv"
+    }
+  ],
   "generated_by": "update_file_list.py"
 }

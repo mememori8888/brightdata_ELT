@@ -12,6 +12,18 @@ on:
         description: 'Input address CSV (leave empty to use config)'
         required: false
         type: string
+      search_query:
+        description: 'Search query (leave empty to use config)'
+        required: false
+        type: string
+      included_type:
+        description: 'Google Places includedType (leave empty for config/default)'
+        required: false
+        type: string
+      exclude_gids_file:
+        description: 'Excluded GID CSV (leave empty to use config)'
+        required: false
+        type: string
       facility_file:
         description: 'Facility output CSV (leave empty to use config)'
         required: false
@@ -35,6 +47,15 @@ on:
         type: string
         default: 'settings/settings.json'
       address_csv:
+        required: false
+        type: string
+      search_query:
+        required: false
+        type: string
+      included_type:
+        required: false
+        type: string
+      exclude_gids_file:
         required: false
         type: string
       facility_file:
@@ -106,20 +127,30 @@ jobs:
             echo "❌ Error: Input address CSV not found: $ADDRESS_CSV"
             exit 1
           fi
+          EXCLUDE_GIDS_FILE="${{ inputs.exclude_gids_file }}"
+          if [ -n "$EXCLUDE_GIDS_FILE" ] && [ ! -f "$EXCLUDE_GIDS_FILE" ]; then
+            echo "❌ Error: Excluded GID CSV not found: $EXCLUDE_GIDS_FILE"
+            exit 1
+          fi
 
       - name: Run Google Places API facility scraper
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           CONFIG_FILE: ${{ github.event.inputs.config_file || inputs.config_file || 'settings/settings.json' }}
+          SEARCH_QUERY: ${{ inputs.search_query }}
+          INCLUDED_TYPE: ${{ inputs.included_type }}
           ADDRESS_CSV_FILE: ${{ inputs.address_csv }}
           FACILITY_FILE: ${{ inputs.facility_file }}
           REVIEW_FILE: ${{ inputs.review_file }}
           UPDATE_FACILITY_FILE: ${{ inputs.update_facility_file }}
           UPDATE_REVIEW_FILE: ${{ inputs.update_review_file }}
+          EXCLUDE_GIDS_FILE: ${{ inputs.exclude_gids_file }}
         timeout-minutes: 300
         run: |
           echo "=== Starting Google Places API facility scraper ==="
           echo "📁 Config file: $CONFIG_FILE"
+          echo "🔎 Search query: ${SEARCH_QUERY:-default from config}"
+          echo "🏷️ Included type: ${INCLUDED_TYPE:-default from config}"
           echo "📥 Address CSV: ${ADDRESS_CSV_FILE:-default from config}"
           echo "📍 Facility CSV: ${FACILITY_FILE:-default from config}"
           echo "⭐ Review CSV: ${REVIEW_FILE:-default from config}"

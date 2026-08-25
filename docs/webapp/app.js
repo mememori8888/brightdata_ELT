@@ -11,7 +11,8 @@ let currentWorkflow = '';
 const ALLOWED_WEBAPP_WORKFLOWS = ['reviews', 'reviews_sequential', 'reviews_recent_relevance', 'facility', 'facility_places'];
 let fileCache = {
     settings: [],
-    results: []
+    results: [],
+    placesProfiles: []
 };
 
 function inferSettingsPurposes(filename) {
@@ -507,11 +508,95 @@ function refreshSequentialOutputOptions() {
     toggleNewFileInput('sequential_output_file', 'sequential_output_file_new');
 }
 
+function ensureSelectOption(selectId, value, label = value) {
+    const select = document.getElementById(selectId);
+    if (!select || !value) return;
+    if (Array.from(select.options).some(option => option.value === value)) return;
+
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    select.appendChild(option);
+}
+
+function setPlacesOutputFile(selectId, inputId, value) {
+    const select = document.getElementById(selectId);
+    const input = document.getElementById(inputId);
+    if (!select || !input || !value) return;
+
+    if (Array.from(select.options).some(option => option.value === value)) {
+        select.value = value;
+    } else {
+        select.value = '__NEW_FILE__';
+        input.value = value.replace(/^results\//, '');
+    }
+    toggleNewFileInput(selectId, inputId);
+    if (select.value === '__NEW_FILE__') {
+        input.value = value.replace(/^results\//, '');
+    }
+}
+
+function applyPlacesProfile(profileId) {
+    const profile = fileCache.placesProfiles.find(entry => entry.id === profileId);
+    if (!profile) return;
+
+    document.getElementById('places_config_file').value = profile.config_file || 'settings/settings.json';
+
+    ensureSelectOption('places_query', profile.query, profile.query);
+    document.getElementById('places_query').value = profile.query || '';
+
+    ensureSelectOption('places_included_type', profile.included_type, profile.included_type);
+    document.getElementById('places_included_type').value = profile.included_type || '';
+
+    ensureSelectOption('places_address_csv', profile.address_csv, profile.address_csv?.replace(/^settings\//, ''));
+    document.getElementById('places_address_csv').value = profile.address_csv || '';
+
+    ensureSelectOption('places_exclude_gids_file', profile.exclude_gids_file, profile.exclude_gids_file?.replace(/^settings\//, ''));
+    document.getElementById('places_exclude_gids_file').value = profile.exclude_gids_file || '';
+
+    setPlacesOutputFile('places_facility_file', 'places_facility_file_new', profile.facility_file);
+    setPlacesOutputFile('places_review_file', 'places_review_file_new', profile.review_file);
+    setPlacesOutputFile('places_update_facility_file', 'places_update_facility_file_new', profile.update_facility_file);
+    setPlacesOutputFile('places_update_review_file', 'places_update_review_file_new', profile.update_review_file);
+}
+
+function populatePlacesProfiles(profiles) {
+    fileCache.placesProfiles = Array.isArray(profiles) ? profiles : [];
+    const profileSelect = document.getElementById('places_profile');
+    const querySelect = document.getElementById('places_query');
+    if (!profileSelect || !querySelect) return;
+
+    profileSelect.innerHTML = '<option value="">設定プリセットを選択してください</option>';
+    querySelect.innerHTML = '<option value="">設定プリセットを選択してください</option>';
+
+    const seenQueries = new Set();
+    fileCache.placesProfiles.forEach(profile => {
+        const option = document.createElement('option');
+        option.value = profile.id;
+        option.textContent = profile.label;
+        profileSelect.appendChild(option);
+
+        if (profile.query && !seenQueries.has(profile.query)) {
+            seenQueries.add(profile.query);
+            ensureSelectOption('places_query', profile.query, profile.query);
+        }
+        ensureSelectOption('places_included_type', profile.included_type, profile.included_type);
+    });
+
+    const defaultProfile = fileCache.placesProfiles.find(profile => profile.config_file === 'settings/settings.json')
+        || fileCache.placesProfiles[0];
+    if (defaultProfile) {
+        profileSelect.value = defaultProfile.id;
+        applyPlacesProfile(defaultProfile.id);
+    }
+}
+
 // ファイル一覧を読み込み
 async function loadFileOptions() {
     try {
         let staticSettings = [];
         let staticResults = [];
+        let placesProfiles = [];
 
         // files.json から読み込み（GitHub Actionsでプライベートリポジトリのデータから生成）
         // キャッシュ回避のためにタイムスタンプを付与
@@ -522,6 +607,7 @@ async function loadFileOptions() {
             const resultEntries = filesData.results || [];
             staticSettings = normalizeFileEntries(settingsEntries, 'settings', inferSettingsPurposes);
             staticResults = normalizeFileEntries(resultEntries, 'results', inferResultsPurposes);
+            placesProfiles = filesData.places_profiles || [];
         }
 
         const [liveSettings, liveResults] = await Promise.all([
@@ -593,6 +679,8 @@ async function loadFileOptions() {
         populateDropdown('places_review_file', reviewFiles, 'results', true);
         populateDropdown('places_update_facility_file', addDataFiles, 'results', true);
         populateDropdown('places_update_review_file', addReviewFiles, 'results', true);
+        populateDropdown('places_exclude_gids_file', excludeFiles, 'settings', false);
+        populatePlacesProfiles(placesProfiles);
         
     } catch (error) {
         console.error('ファイルオプションの読み込みエラー:', error);
@@ -932,6 +1020,10 @@ function getFormData() {
 
         case 'facility_places':
             data.config_file = document.getElementById('places_config_file')?.value || 'settings/settings.json';
+            data.profile_id = document.getElementById('places_profile')?.value || '';
+            data.search_query = document.getElementById('places_query')?.value || '';
+            data.included_type = document.getElementById('places_included_type')?.value || '';
+            data.exclude_gids_file = document.getElementById('places_exclude_gids_file')?.value || '';
             data.address_csv = document.getElementById('places_address_csv')?.value || '';
             data.facility_file = resolveSelectedFile('places_facility_file', 'places_facility_file_new', 'results');
             data.review_file = resolveSelectedFile('places_review_file', 'places_review_file_new', 'results');
@@ -1055,7 +1147,10 @@ function generateIssueBody(data) {
 
         case 'facility_places':
             body += `### 🗺️ 施設・レビュー取得（Google Places API）\n\n`;
-            body += `- **設定ファイル**: \`${data.config_file}\`\n`;
+            body += `- **設定プリセット**: \`${data.profile_id}\`\n`;
+            body += `- **検索キーワード**: \`${data.search_query}\`\n`;
+            body += `- **カテゴリ**: \`${data.included_type || '指定なし'}\`\n`;
+            if (data.exclude_gids_file) body += `- **除外GIDファイル**: \`${data.exclude_gids_file}\`\n`;
             if (data.address_csv) body += `- **入力住所CSV**: \`${data.address_csv}\`\n`;
             if (data.facility_file) body += `- **施設出力CSV**: \`${data.facility_file}\`\n`;
             if (data.review_file) body += `- **レビュー出力CSV**: \`${data.review_file}\`\n`;
@@ -1192,6 +1287,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('facility_custom_exclude_gids_path')?.addEventListener('change', function() {
         toggleNewFileInput('facility_custom_exclude_gids_path', 'facility_custom_exclude_gids_path_new');
+    });
+    document.getElementById('places_profile')?.addEventListener('change', function() {
+        applyPlacesProfile(this.value);
     });
     [
         ['places_facility_file', 'places_facility_file_new'],

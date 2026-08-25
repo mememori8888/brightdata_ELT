@@ -640,8 +640,11 @@ def run_from_config(config_file, file_overrides=None):
         'review_file': 'results',
         'update_facility_path': 'results',
         'update_review_path': 'results',
+        'exclude_gids_path': 'settings',
     }
     for key, value in file_overrides.items():
+        if key in {'query', 'includedType'}:
+            continue
         normalized = value.replace('\\', '/')
         parts = normalized.split('/')
         expected_root = override_roots.get(key)
@@ -713,11 +716,14 @@ def run_from_config(config_file, file_overrides=None):
 if __name__ == "__main__":
     CONFIG_FILE = os.environ.get('CONFIG_FILE', 'settings/settings.json')
     FILE_OVERRIDES = {
+        'query': os.environ.get('SEARCH_QUERY'),
+        'includedType': os.environ.get('INCLUDED_TYPE'),
         'address_csv_path': os.environ.get('ADDRESS_CSV_FILE'),
         'facility_file': os.environ.get('FACILITY_FILE'),
         'review_file': os.environ.get('REVIEW_FILE'),
         'update_facility_path': os.environ.get('UPDATE_FACILITY_FILE'),
         'update_review_path': os.environ.get('UPDATE_REVIEW_FILE'),
+        'exclude_gids_path': os.environ.get('EXCLUDE_GIDS_FILE'),
     }
     print(f"🚀 Starting with CONFIG_FILE: {CONFIG_FILE}")
     run_from_config(CONFIG_FILE, FILE_OVERRIDES)

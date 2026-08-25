@@ -20,11 +20,14 @@ class RunFromConfigFileOverrideTests(unittest.TestCase):
             "update_review_path": "results/default_review_increment.csv",
         }
         overrides = {
+            "query": "老人ホーム",
+            "includedType": "dental_clinic",
             "address_csv_path": "settings/selected_address.csv",
             "facility_file": "results/selected_facility.csv",
             "review_file": "results/selected_review.csv",
             "update_facility_path": "results/selected_facility_increment.csv",
             "update_review_path": "results/selected_review_increment.csv",
+            "exclude_gids_path": "settings/selected_exclude_gids.csv",
         }
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -39,11 +42,14 @@ class RunFromConfigFileOverrideTests(unittest.TestCase):
                 main.run_from_config(str(config_path), overrides)
 
         kwargs = update_mini.call_args.kwargs
+        self.assertEqual(kwargs["base_query"], "老人ホーム")
+        self.assertEqual(kwargs["included_type"], "dental_clinic")
         self.assertEqual(kwargs["file_path"], "settings/selected_address.csv")
         self.assertEqual(kwargs["facility_file"], "results/selected_facility.csv")
         self.assertEqual(kwargs["review_file"], "results/selected_review.csv")
         self.assertEqual(kwargs["update_facility_path"], "results/selected_facility_increment.csv")
         self.assertEqual(kwargs["update_review_path"], "results/selected_review_increment.csv")
+        self.assertEqual(kwargs["exclude_gids_path"], "settings/selected_exclude_gids.csv")
 
     def test_blank_overrides_keep_config_paths(self):
         task = {

@@ -362,8 +362,12 @@ jobs:
               address_csv = params.get("address_csv")
               if address_csv and not os.path.exists(data_path(address_csv)):
                   errors.append(f"指定された address_csv が存在しません: {address_csv}")
+              exclude_gids_file = params.get("exclude_gids_file")
+              if exclude_gids_file and not os.path.exists(data_path(exclude_gids_file)):
+                  errors.append(f"指定された exclude_gids_file が存在しません: {exclude_gids_file}")
               file_roots = {
                   "address_csv": "settings/",
+                  "exclude_gids_file": "settings/",
                   "facility_file": "results/",
                   "review_file": "results/",
                   "update_facility_file": "results/",
@@ -566,11 +570,14 @@ jobs:
     secrets: inherit
     with:
       config_file: ${{ fromJson(needs.parse-and-route.outputs.params).config_file || 'settings/settings.json' }}
+      search_query: ${{ fromJson(needs.parse-and-route.outputs.params).search_query || '' }}
+      included_type: ${{ fromJson(needs.parse-and-route.outputs.params).included_type || '' }}
       address_csv: ${{ fromJson(needs.parse-and-route.outputs.params).address_csv || '' }}
       facility_file: ${{ fromJson(needs.parse-and-route.outputs.params).facility_file || '' }}
       review_file: ${{ fromJson(needs.parse-and-route.outputs.params).review_file || '' }}
       update_facility_file: ${{ fromJson(needs.parse-and-route.outputs.params).update_facility_file || '' }}
       update_review_file: ${{ fromJson(needs.parse-and-route.outputs.params).update_review_file || '' }}
+      exclude_gids_file: ${{ fromJson(needs.parse-and-route.outputs.params).exclude_gids_file || '' }}
 
   run-facility:
     needs: [parse-and-route, validate-request]
@@ -705,7 +712,10 @@ jobs:
               } else if (workflow === 'facility_places') {
                 const configFile = params.config_file || 'settings/settings.json';
                 files.push(`- ⚙️ **設定ファイル**: \`${configFile}\`（プライベートリポジトリ）`);
+                if (params.search_query) files.push(`- 🔎 **検索キーワード**: \`${params.search_query}\``);
+                if (params.included_type) files.push(`- 🏷️ **カテゴリ**: \`${params.included_type}\``);
                 if (params.address_csv) files.push(`- 📥 **入力ファイル**: \`${params.address_csv}\`（プライベートリポジトリ）`);
+                if (params.exclude_gids_file) files.push(`- 🚫 **除外GID**: \`${params.exclude_gids_file}\`（プライベートリポジトリ）`);
                 const outputFiles = [params.facility_file, params.review_file, params.update_facility_file, params.update_review_file].filter(Boolean);
                 files.push(outputFiles.length
                   ? `- 📍 **出力ファイル**: ${outputFiles.map(file => `\`${file}\``).join(' / ')}（プライベートリポジトリ）`

@@ -284,7 +284,47 @@
                 <!-- Facility Places (Google Places API) Workflow -->
                 <div id="form_facility_places" class="workflow-form" style="display: none;">
                     <h3>🗺️ 施設・レビュー取得設定（Google Places API）</h3>
-                    <p class="section-description">Google Maps Platform の Places API を使って、施設情報とレビューを同時に取得します。選択したファイルは設定JSONの値を上書きします</p>
+                    <p class="section-description">Google Maps Platform の Places API を使って、施設情報とレビューを同時に取得します。プリセット選択後、必要な項目だけ変更できます</p>
+
+                    <div class="form-section">
+                        <h3>⚙️ 検索条件</h3>
+
+                        <div class="form-group">
+                            <label for="places_profile">設定プリセット *</label>
+                            <select id="places_profile" required aria-required="true">
+                                <option value="">読み込み中...</option>
+                            </select>
+                            <small>選択すると検索条件と入出力ファイルの既定値がまとめて入ります</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="places_query">検索キーワード *</label>
+                            <select id="places_query" required aria-required="true">
+                                <option value="">設定プリセットを選択してください</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="places_included_type">カテゴリ (includedType)</label>
+                            <select id="places_included_type">
+                                <option value="">指定なし（検索キーワードのみ）</option>
+                                <option value="dentist">dentist（歯科医）</option>
+                                <option value="dental_clinic">dental_clinic（歯科医院）</option>
+                                <option value="funeral_home">funeral_home（葬儀施設）</option>
+                            </select>
+                            <small>Google Placesのカテゴリで絞り込む場合のみ指定します</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="places_exclude_gids_file">除外GIDファイル</label>
+                            <select id="places_exclude_gids_file">
+                                <option value="">指定なし</option>
+                            </select>
+                            <small>取得対象から除外する施設GIDのCSV</small>
+                        </div>
+
+                        <input type="hidden" id="places_config_file" value="settings/settings.json">
+                    </div>
 
                     <div class="form-section">
                         <h3>📝 入出力ファイル</h3>
@@ -338,14 +378,6 @@
                         </div>
                     </div>
 
-                    <div class="form-section">
-                        <h3>⚙️ 検索条件の設定</h3>
-                        <div class="form-group">
-                            <label for="places_config_file">設定ファイル (settings.json) *</label>
-                            <input type="text" id="places_config_file" value="settings/settings.json" required aria-required="true" aria-label="設定ファイル（必須）">
-                            <small>検索クエリ等の既定値を読み込むJSON配列です。上で選択した入出力ファイルが優先されます</small>
-                        </div>
-                    </div>
                 </div>
                     <button type="submit" class="btn-primary">
                         📝 GitHubでIssueを作成
@@ -380,6 +412,6 @@
     </div>
 
     <!-- フォーム変更時に古いJavaScriptがブラウザに残らないようバージョンを更新する -->
-    <script src="app.js?v=20260825-places-file-select"></script>
+    <script src="app.js?v=20260825-places-presets"></script>
 </body>
 </html>
