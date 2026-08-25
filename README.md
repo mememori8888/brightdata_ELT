@@ -4,14 +4,17 @@ WebAppからGitHub Issueを作成し、GitHub Actions経由で施設・レビュ
 
 移管後の運用リポジトリは`jmh8128494-cloud/brightdata_ELT`、公開WebAppは`https://jmh8128494-cloud.github.io/brightdata_ELT/webapp/`です。
 
-## 現在使用するワークフロー
+## WebAppのワークフロー
 
-| WebApp表示 | コマンド | データソース |
-|---|---|---|
-| 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) |
-| レビュー取得・新仕様逐次実行 | `/run-reviews-sequential` | Bright Data Dataset / Web Scraper API |
+| WebAppグループ | WebApp表示 | コマンド | データソース |
+|---|---|---|---|
+| 現在の運用 | 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) |
+| 現在の運用 | レビュー取得・新仕様逐次実行 | `/run-reviews-sequential` | Bright Data Dataset / Web Scraper API |
+| SERP API再開後 | レビュー取得 (Reviews) | `/run-reviews` | Bright Data SERP API |
+| SERP API再開後 | 施設データ取得 (Facility) | `/run-facility` | Bright Data SERP API |
+| SERP API再開後 | レビュー取得・30日関連度ランク付き | `/run-reviews-relevance` | Dataset + SERP API |
 
-Bright DataのSERP APIは現在利用できないため、`/run-reviews`、`/run-facility`、`/run-reviews-relevance`は運用対象外です。
+SERP依存の3処理は、将来再開できるようコードと選択肢を保持しています。再開時は[`docs/SERP_API_REACTIVATION_GUIDE.md`](docs/SERP_API_REACTIVATION_GUIDE.md)に従って小規模確認を行います。
 
 Google Places APIはオーナー返信を提供しません。返信が必要なレビュー取得にはDataset逐次版を使用します。すべてのレビューCSVは[`review_schema.py`](review_schema.py)の共通15列で出力します。
 
@@ -24,11 +27,12 @@ Google Places APIはオーナー返信を提供しません。返信が必要な
 
 - `main.py`: Google Places API版
 - `get_reviews_from_dental_new.py`: Bright Data Datasetレビュー取得
-- `reviews_BrightData_50.py`: SERPレビュー取得（現在利用不可、互換性維持）
+- `reviews_BrightData_50.py`: SERPレビュー取得（SERP再開用に保持）
 - `.github/workflows/issue-ops-universal.yml`: Issueの検証・権限判定・処理分岐
 - `docs/webapp/`: GitHub Pages用WebApp
 - `docs/CLIENT_ACCEPTANCE_TEST_GUIDE.md`: お客様側の受入テスト
 - `docs/CLIENT_HANDOVER_GUIDE.md`: 運用開始・移管手順
+- `docs/n8n_google_reviews_ops.md`: n8nとGoogleログイン状態のローカル操作
 
 ## ローカルテスト
 

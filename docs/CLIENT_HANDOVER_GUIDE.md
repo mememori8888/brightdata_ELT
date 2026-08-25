@@ -46,7 +46,7 @@ git remote -v
 | `.github/workflows/*.yml` | `repository: jmh8128494-cloud/googlemap` |
 | `issue-ops-universal.yml`の完了リンク | `https://github.com/jmh8128494-cloud/googlemap` |
 | PythonのGitHub ownerフォールバック | `jmh8128494-cloud` |
-| WebAppキャッシュ識別子 | `app.js?v=20260825-owner-transfer` |
+| WebAppキャッシュ識別子 | `app.js?v=20260825-workflow-status` |
 
 移管前の固定値が現行ファイルに残っていないことを確認するコマンド:
 
@@ -58,10 +58,10 @@ rg -n "$oldOwner|GITHUB_REPO = '$oldCodeRepo'|repository: $oldOwner" `
   docs/CLIENT_ACCEPTANCE_TEST_GUIDE.md `
   docs/CLIENT_HANDOVER_GUIDE.md `
   docs/issueオーケストレーション.md `
-  reviews_BrightData_50.py facility_BrightData_20_update.py
+  reviews_BrightData_50.py facility_BrightData_20.py
 ```
 
-この確認は結果0件が正常です。`HANDOVER_ROADMAP.md`などの履歴資料には、過去のIssue URLや旧リポジトリ名が記録として残っています。現在の設定確認には使いません。
+この確認は結果0件が正常です。
 
 ## 4. 必要なSecrets
 
@@ -73,6 +73,7 @@ rg -n "$oldOwner|GITHUB_REPO = '$oldCodeRepo'|repository: $oldOwner" `
 | `GOOGLE_MAPS_API_KEY` | Google Places API版 | Places版で必須 |
 | `BRIGHTDATA_API_TOKEN` | Dataset逐次レビュー | 逐次版で必須 |
 | `BRIGHTDATA_ZONE_NAME` | SERP APIのゾーン | SERP再開時に必須 |
+| `GOOGLE_MAPS_STORAGE_STATE_B64` | Playwright関連度取得のGoogleログイン状態 | 手動のstate workflow使用時のみ |
 | `GEMINI_API_KEY` | AI要約 | 現在無効、不要 |
 
 `PRIVATE_REPO_PAT`は新オーナー自身がFine-grained tokenとして発行します。
@@ -117,13 +118,13 @@ WebAppに古いJavaScriptが残る場合は、スーパーリロードまたは�
 
 ## 7. 現在のワークフロー
 
-| WebApp表示 | Issueコマンド | データソース | 初回受入 |
-|---|---|---|---|
-| 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) | 実施する |
-| レビュー取得・新仕様逐次実行 | `/run-reviews-sequential` | Bright Data Dataset / Web Scraper API | 実施する |
-| レビュー取得 (Reviews) | `/run-reviews` | Bright Data SERP API | ゾーン再開後に実施 |
-| 施設データ取得 (Facility) | `/run-facility` | Bright Data SERP API | ゾーン再開後に実施 |
-| 30日関連度ランク付き | `/run-reviews-relevance` | Dataset + SERP API | ゾーン再開後に実施 |
+| WebAppグループ | WebApp表示 | Issueコマンド | データソース | 初回受入 |
+|---|---|---|---|---|
+| 現在の運用 | 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) | 実施する |
+| 現在の運用 | レビュー取得・新仕様逐次実行 | `/run-reviews-sequential` | Bright Data Dataset / Web Scraper API | 実施する |
+| SERP API再開後 | レビュー取得 (Reviews) | `/run-reviews` | Bright Data SERP API | ゾーン再開後に実施 |
+| SERP API再開後 | 施設データ取得 (Facility) | `/run-facility` | Bright Data SERP API | ゾーン再開後に実施 |
+| SERP API再開後 | 30日関連度ランク付き | `/run-reviews-relevance` | Dataset + SERP API | ゾーン再開後に実施 |
 
 SERP依存の3処理は将来の再開に備えてWebAppとActionsへ残しています。SERPゾーンの利用可否をBright Data側で確認できるまでは、初回受入テストでは選択しません。
 
@@ -146,7 +147,11 @@ Google Places APIはレビューのオーナー返信を返しません。返信
 
 Places版の`オーナー返信`、関連度3列、`レビュー要約`が空欄なのは正常です。列が欠落している場合は異常です。
 
-## 9. 障害時の確認
+## 9. n8n・Googleログイン状態（任意）
+
+ローカルn8nでGoogle Mapsの関連度順位を付ける場合は、[`n8n_google_reviews_ops.md`](n8n_google_reviews_ops.md)を使用します。これはWebAppの受入テストとは別の任意経路です。Googleログイン状態はSecret相当として扱い、リポジトリへ保存しません。
+
+## 10. 障害時の確認
 
 | 症状 | 確認 |
 |---|---|
@@ -162,7 +167,7 @@ Places版の`オーナー返信`、関連度3列、`レビュー要約`が空欄
 
 Issue URL、Actions URL、失敗ステップ、エラー文を記録し、Secretsの値は共有しません。
 
-## 10. 移管完了条件
+## 11. 移管完了条件
 
 - `jmh8128494-cloud`が両リポジトリのオーナーになっている
 - `googlemap`はPrivate、`brightdata_ELT`はPublicである

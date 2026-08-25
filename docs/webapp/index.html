@@ -20,12 +20,20 @@
                 <label for="workflow_type">実行するワークフロー *</label>
                 <select id="workflow_type" required aria-required="true" aria-label="実行するワークフロー（必須）">
                     <option value="">選択してください</option>
-                    <option value="reviews">📝 レビュー取得 (Reviews)</option>
-                    <option value="reviews_sequential">⚡ レビュー取得・新仕様逐次実行 (Reviews Sequential)</option>
-                    <option value="reviews_recent_relevance">⭐ レビュー取得・30日関連度ランク付き</option>
-                    <option value="facility">🏢 施設データ取得 (Facility)</option>
-                    <option value="facility_places">🗺️ 施設・レビュー取得 (Google Places API)</option>
+                    <optgroup label="現在の運用">
+                        <option value="facility_places">🗺️ 施設・レビュー取得 (Google Places API)</option>
+                        <option value="reviews_sequential">⚡ レビュー取得・新仕様逐次実行 (Reviews Sequential)</option>
+                    </optgroup>
+                    <optgroup label="SERP API再開後">
+                        <option value="reviews">📝 レビュー取得 (Reviews)</option>
+                        <option value="reviews_recent_relevance">⭐ レビュー取得・30日関連度ランク付き</option>
+                        <option value="facility">🏢 施設データ取得 (Facility)</option>
+                    </optgroup>
                 </select>
+                <small class="workflow-status-guide">
+                    <span><strong>現在の運用:</strong> Google Places API、Reviews Sequential</span>
+                    <span><strong>SERP API再開後:</strong> Reviews、30日関連度ランク付き、Facility</span>
+                </small>
             </div>
 
             <!-- プリセット選択エリア -->
@@ -401,6 +409,6 @@
     </div>
 
     <!-- フォーム変更時に古いJavaScriptがブラウザに残らないようバージョンを更新する -->
-    <script src="app.js?v=20260825-owner-transfer"></script>
+    <script src="app.js?v=20260825-workflow-status"></script>
 </body>
 </html>

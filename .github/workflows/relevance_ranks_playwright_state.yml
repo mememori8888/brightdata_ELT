@@ -99,7 +99,7 @@ on:
       PRIVATE_REPO_PAT:
         required: true
       GOOGLE_MAPS_STORAGE_STATE_B64:
-        required: true
+        required: false
       GOOGLE_MAPS_STORAGE_STATE_JSON:
         required: false
 

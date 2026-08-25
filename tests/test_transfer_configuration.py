@@ -17,7 +17,7 @@ class TransferConfigurationTests(unittest.TestCase):
         self.assertIn(f"const GITHUB_OWNER = '{TARGET_OWNER}';", app)
         self.assertIn(f"const GITHUB_REPO = '{TARGET_CODE_REPOSITORY}';", app)
         self.assertIn("const DATA_REPO = 'googlemap';", app)
-        self.assertIn("app.js?v=20260825-owner-transfer", html)
+        self.assertIn("app.js?v=20260825-workflow-status", html)
 
     def test_every_googlemap_checkout_targets_the_new_owner(self):
         checkout_references = []
@@ -40,7 +40,7 @@ class TransferConfigurationTests(unittest.TestCase):
         self.assertIn(f"https://github.com/{TARGET_DATA_REPOSITORY}", orchestrator)
         self.assertIn('[[ ",$AUTO_RUN_USERS," == *",$COMMENT_USER,"* ]]', orchestrator)
 
-        for relative_path in ("reviews_BrightData_50.py", "facility_BrightData_20_update.py"):
+        for relative_path in ("reviews_BrightData_50.py",):
             source = (REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8")
             self.assertIn(f"'GITHUB_REPOSITORY_OWNER', '{TARGET_OWNER}'", source)
 

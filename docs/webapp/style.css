@@ -77,6 +77,19 @@ small {
     font-size: 0.875rem;
 }
 
+.workflow-status-guide {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-left: 4px solid #667eea;
+    border-radius: 6px;
+    background: #f5f6ff;
+    line-height: 1.55;
+}
+
+.workflow-status-guide span {
+    display: block;
+}
+
 .form-actions {
     display: flex;
     gap: 12px;

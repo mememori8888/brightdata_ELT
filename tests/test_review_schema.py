@@ -19,7 +19,6 @@ class ReviewSchemaTests(unittest.TestCase):
         for relative_path in (
             "scripts/merge_review_batches.py",
             "scripts/enrich_review_relevance_ranks.py",
-            "scripts/enrich_review_relevance_ranks_local.py",
             "scripts/enrich_review_relevance_ranks_state.py",
         ):
             source = (repository_root / relative_path).read_text(encoding="utf-8")

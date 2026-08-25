@@ -68,5 +68,10 @@ Thumbs.db
 
 # Google API credentials
 credentials.json
-token.jsonsettings/
+token.json
+settings/
 results/
+
+# Google Maps login state (cookies / local authentication)
+google-maps-storage-state.json
+n8n/.secrets/

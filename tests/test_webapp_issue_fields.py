@@ -27,6 +27,8 @@ class WebAppIssueFieldTests(unittest.TestCase):
         )
         for workflow in ("reviews", "reviews_recent_relevance", "facility"):
             self.assertIn(f'<option value="{workflow}">', self.html)
+        self.assertIn('<optgroup label="現在の運用">', self.html)
+        self.assertIn('<optgroup label="SERP API再開後">', self.html)
         self.assertNotIn("SERP API利用不可", self.html)
 
 

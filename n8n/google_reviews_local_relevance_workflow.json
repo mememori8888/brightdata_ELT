@@ -20,49 +20,49 @@
               "id": "review_file",
               "name": "review_file",
               "type": "string",
-              "value": "C:\\Users\\user\\Downloads\\dental_reviews.csv"
+              "value": "={{$env.BRIGHTDATA_ELT_DATA_ROOT + '\\\\results\\\\dental_reviews.csv'}}"
             },
             {
               "id": "facility_file",
               "name": "facility_file",
               "type": "string",
-              "value": "D:\\python\\demo\\demo\\results\\dental_new.csv"
+              "value": "={{$env.BRIGHTDATA_ELT_DATA_ROOT + '\\\\results\\\\dental_new.csv'}}"
             },
             {
               "id": "recent_review_glob",
               "name": "recent_review_glob",
               "type": "string",
-              "value": "D:\\python\\googlemap\\results\\increments\\*.csv"
+              "value": "={{$env.BRIGHTDATA_ELT_DATA_ROOT + '\\\\results\\\\increments\\\\*.csv'}}"
             },
             {
-              "id": "profile_dir",
-              "name": "profile_dir",
+              "id": "storage_state",
+              "name": "storage_state",
               "type": "string",
-              "value": "D:\\python\\googlemap_codex\\google-profile-mamhidet"
+              "value": "={{$env.GOOGLE_MAPS_STORAGE_STATE}}"
             },
             {
               "id": "output_file",
               "name": "output_file",
               "type": "string",
-              "value": "C:\\Users\\user\\Downloads\\dental_reviews.csv"
+              "value": "={{$env.BRIGHTDATA_ELT_DATA_ROOT + '\\\\results\\\\dental_reviews.csv'}}"
             },
             {
               "id": "summary_file",
               "name": "summary_file",
               "type": "string",
-              "value": "C:\\Users\\user\\Downloads\\relevance_rank_summary_local.csv"
+              "value": "={{$env.BRIGHTDATA_ELT_DATA_ROOT + '\\\\results\\\\relevance_rank_summary_local.csv'}}"
             },
             {
               "id": "rank_detail_file",
               "name": "rank_detail_file",
               "type": "string",
-              "value": "C:\\Users\\user\\Downloads\\relevance_rank_detail_local.csv"
+              "value": "={{$env.BRIGHTDATA_ELT_DATA_ROOT + '\\\\results\\\\relevance_rank_detail_local.csv'}}"
             },
             {
               "id": "unmatched_review_file",
               "name": "unmatched_review_file",
               "type": "string",
-              "value": "C:\\Users\\user\\Downloads\\relevance_rank_unmatched_reviews_local.csv"
+              "value": "={{$env.BRIGHTDATA_ELT_DATA_ROOT + '\\\\results\\\\relevance_rank_unmatched_reviews_local.csv'}}"
             },
             {
               "id": "rank_limit",
@@ -103,7 +103,7 @@
     },
     {
       "parameters": {
-        "command": "=powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"D:\\python\\demo\\demo\\n8n\\run_local_relevance.ps1\" -ReviewFile \"{{$json.review_file}}\" -FacilityFile \"{{$json.facility_file}}\" -RecentReviewGlob \"{{$json.recent_review_glob}}\" -ProfileDir \"{{$json.profile_dir}}\" -OutputFile \"{{$json.output_file}}\" -SummaryFile \"{{$json.summary_file}}\" -RankDetailFile \"{{$json.rank_detail_file}}\" -UnmatchedReviewFile \"{{$json.unmatched_review_file}}\" -RankLimit {{$json.rank_limit}} -Start {{$json.start}} -Limit {{$json.limit}} {{$json.allow_failures ? '-AllowFailures' : ''}}"
+        "command": "=powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{{$env.BRIGHTDATA_ELT_ROOT}}\\n8n\\run_local_relevance.ps1\" -ReviewFile \"{{$json.review_file}}\" -FacilityFile \"{{$json.facility_file}}\" -RecentReviewGlob \"{{$json.recent_review_glob}}\" -StorageState \"{{$json.storage_state}}\" -OutputFile \"{{$json.output_file}}\" -SummaryFile \"{{$json.summary_file}}\" -RankDetailFile \"{{$json.rank_detail_file}}\" -UnmatchedReviewFile \"{{$json.unmatched_review_file}}\" -RankLimit {{$json.rank_limit}} -Start {{$json.start}} -Limit {{$json.limit}} {{$json.allow_failures ? '-AllowFailures' : ''}}"
       },
       "id": "run-local-relevance",
       "name": "Run local relevance",

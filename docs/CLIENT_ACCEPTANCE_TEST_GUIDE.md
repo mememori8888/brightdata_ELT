@@ -6,14 +6,14 @@
 
 ## 1. 現在のテスト対象
 
-現在、受入テストを行うのは次の2つです。
+WebAppの「現在の運用」グループにある次の2つを受入テストします。
 
 | 順番 | WebAppの表示名 | Issueコマンド | API |
 |---|---|---|---|
 | 1 | 施設・レビュー取得 (Google Places API) | `/run-facility-places` | Google Places API (New) |
 | 2 | レビュー取得・新仕様逐次実行 | `/run-reviews-sequential` | Bright Data Dataset / Web Scraper API |
 
-次の3つはBright DataのSERP APIを必要とします。直近の確認ではSERPゾーンを利用できなかったため、初回受入テストでは選択・実行しません。将来ゾーンが再開した場合は別途テストします。
+WebAppの「SERP API再開後」グループにある次の3つは、初回受入テストでは選択・実行しません。将来ゾーンが再開した場合は別途テストします。
 
 - レビュー取得 (Reviews): `/run-reviews`
 - 施設データ取得 (Facility): `/run-facility`

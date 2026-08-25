@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Enrich review CSV relevance ranks using Playwright storage_state.
 
-This variant keeps the same CSV/ranking behavior as enrich_review_relevance_ranks_local.py,
-but stores login/session cookies in a lightweight JSON file instead of using a full
+Login/session cookies are stored in a lightweight JSON file instead of a full
 Chrome user-data profile directory.
 """
 from __future__ import annotations
@@ -695,7 +694,6 @@ async def fetch_relevance_gids_on_page(
 
 async def fetch_rank_maps(
     facilities: list[dict[str, str]],
-    profile_dir: Path,
     rank_limit: int,
     max_scrolls: int,
     timeout: int,
@@ -1186,7 +1184,6 @@ async def async_main(args: argparse.Namespace) -> None:
 
     rank_maps, failed = await fetch_rank_maps(
         facilities=target_facilities,
-        profile_dir=args.profile_dir,
         rank_limit=args.rank_limit,
         max_scrolls=args.max_scrolls,
         timeout=args.timeout,
@@ -1256,7 +1253,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--storage-state", type=Path, required=True, help="Googleログイン状態を保存/読込するJSON")
     parser.add_argument("--login-only", action="store_true", help="手動ログインしてstorage_stateだけ保存して終了します")
     parser.add_argument("--login-url", default="https://www.google.com/maps", help="--login-only で開くURL")
-    parser.add_argument("--profile-dir", type=Path, default=Path("."), help="互換性のため残しています。この版では使用しません")
     parser.add_argument("--rank-limit", type=int, default=10)
     parser.add_argument("--start", type=int, default=1, help="テスト/分割用: 対象施設の開始位置（1始まり）")
     parser.add_argument("--limit", type=int, default=None, help="テスト用: 対象施設数を制限")

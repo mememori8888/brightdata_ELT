@@ -9,7 +9,7 @@ param(
   [string]$RecentReviewGlob,
 
   [Parameter(Mandatory = $true)]
-  [string]$ProfileDir,
+  [string]$StorageState,
 
   [string]$OutputFile = "",
   [string]$SummaryFile = "",
@@ -28,7 +28,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$scriptPath = Join-Path $repoRoot "scripts\enrich_review_relevance_ranks_local.py"
+$scriptPath = Join-Path $repoRoot "scripts\enrich_review_relevance_ranks_state.py"
 
 if (-not (Test-Path -LiteralPath $scriptPath)) {
   throw "Local relevance script not found: $scriptPath"
@@ -39,8 +39,8 @@ if (-not (Test-Path -LiteralPath $ReviewFile)) {
 if (-not (Test-Path -LiteralPath $FacilityFile)) {
   throw "facility-file not found: $FacilityFile"
 }
-if (-not (Test-Path -LiteralPath $ProfileDir)) {
-  throw "profile-dir not found: $ProfileDir"
+if (-not (Test-Path -LiteralPath $StorageState)) {
+  throw "storage-state not found: $StorageState"
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputFile)) {
@@ -62,7 +62,7 @@ $arguments = @(
   "--output-file", $OutputFile,
   "--facility-file", $FacilityFile,
   "--recent-review-glob", $RecentReviewGlob,
-  "--profile-dir", $ProfileDir,
+  "--storage-state", $StorageState,
   "--rank-limit", $RankLimit,
   "--start", $Start,
   "--timeout", $Timeout,
@@ -91,7 +91,7 @@ Write-Host "reviewFile=$ReviewFile"
 Write-Host "outputFile=$OutputFile"
 Write-Host "facilityFile=$FacilityFile"
 Write-Host "recentReviewGlob=$RecentReviewGlob"
-Write-Host "profileDir=$ProfileDir"
+Write-Host "storageState=$StorageState"
 Write-Host "rankLimit=$RankLimit start=$Start limit=$Limit"
 
 Set-Location -LiteralPath $repoRoot
