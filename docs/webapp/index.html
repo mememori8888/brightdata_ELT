@@ -24,6 +24,7 @@
                     <option value="reviews_sequential">⚡ レビュー取得・新仕様逐次実行 (Reviews Sequential)</option>
                     <option value="reviews_recent_relevance">⭐ レビュー取得・30日関連度ランク付き</option>
                     <option value="facility">🏢 施設データ取得 (Facility)</option>
+                    <option value="facility_places">🗺️ 施設・レビュー取得 (Google Places API)</option>
                 </select>
             </div>
 
@@ -280,7 +281,21 @@
                     </div>
                 </div>
 
-                <div class="form-actions">
+                <!-- Facility Places (Google Places API) Workflow -->
+                <div id="form_facility_places" class="workflow-form" style="display: none;">
+                    <h3>🗺️ 施設・レビュー取得設定（Google Places API）</h3>
+                    <p class="section-description">Google Maps Platform の Places API を使って、施設情報とレビューを同時に取得します（設定ファイル内の各タスクを順に実行）</p>
+
+                    <div class="form-section">
+                        <h3>📝 設定ファイル</h3>
+
+                        <div class="form-group">
+                            <label for="places_config_file">設定ファイル (settings.json) *</label>
+                            <input type="text" id="places_config_file" value="settings/settings.json" required aria-required="true" aria-label="設定ファイル（必須）">
+                            <small>検索クエリ・住所CSV・出力先をタスク単位で定義したJSON配列です（address_csv_path / facility_file / review_file 等）。<code>settings/settings.json</code> と同じ「タスクのリスト」形式である必要があり、<code>care_*.json</code> 等の単一タスク形式は使用できません</small>
+                        </div>
+                    </div>
+                </div>
                     <button type="submit" class="btn-primary">
                         📝 GitHubでIssueを作成
                     </button>

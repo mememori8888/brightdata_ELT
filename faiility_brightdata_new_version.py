@@ -40,20 +40,22 @@ def detect_data_root() -> Path:
         if candidate.exists() and (candidate / "settings").exists():
             return candidate
 
-    # 3. カレントディレクトリにフォールバック
-    cwd = Path.cwd()
-    if (cwd / "settings").exists():
-        return cwd
-
-    # 4. スクリプトのディレクトリにフォールバック
-    return Path(__file__).parent
+    # データ用リポジトリが見つからない場合は、コード側へ書き込まず停止する。
+    raise FileNotFoundError(
+        "データルートが見つかりません。"
+        "PRIVATE_DATA_ROOT に settings/ と results/ を含むディレクトリを指定してください。"
+    )
 
 
 # ─────────────────────────────────────────────
 # メイン
 # ─────────────────────────────────────────────
 def main() -> None:
-    data_root = detect_data_root()
+    try:
+        data_root = detect_data_root()
+    except FileNotFoundError as exc:
+        print(f"❌ エラー: {exc}", file=sys.stderr)
+        sys.exit(1)
     settings_dir = data_root / "settings"
     results_dir = data_root / "results"
 

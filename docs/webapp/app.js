@@ -8,7 +8,7 @@ const DATA_BRANCH = 'main';
 // グローバル変数
 let issueData = {};
 let currentWorkflow = '';
-const ALLOWED_WEBAPP_WORKFLOWS = ['reviews', 'reviews_sequential', 'reviews_recent_relevance', 'facility'];
+const ALLOWED_WEBAPP_WORKFLOWS = ['reviews', 'reviews_sequential', 'reviews_recent_relevance', 'facility', 'facility_places'];
 let fileCache = {
     settings: [],
     results: []
@@ -922,6 +922,10 @@ function getFormData() {
             
             data.custom_settings = Object.keys(facilityCustomSettings).length > 0 ? facilityCustomSettings : null;
             break;
+
+        case 'facility_places':
+            data.config_file = document.getElementById('places_config_file')?.value || 'settings/settings.json';
+            break;
             
     }
     
@@ -965,7 +969,8 @@ function generateIssueBody(data) {
         'reviews': '/run-reviews',
         'reviews_sequential': '/run-reviews-sequential',
         'reviews_recent_relevance': '/run-reviews-relevance',
-        'facility': '/run-facility'
+        'facility': '/run-facility',
+        'facility_places': '/run-facility-places'
     };
     
     let body = `${commandMap[data.workflow]}\n\n`;
@@ -1035,6 +1040,12 @@ function generateIssueBody(data) {
                 });
             }
             break;
+
+        case 'facility_places':
+            body += `### 🗺️ 施設・レビュー取得（Google Places API）\n\n`;
+            body += `- **設定ファイル**: \`${data.config_file}\`\n`;
+            body += `Google Places APIを使用して、設定ファイル内の各タスクを順に実行し、施設情報とレビューを同時に取得します\n`;
+            break;
             
     }
     
@@ -1074,7 +1085,8 @@ function openIssue() {
         'reviews': 'Reviews Job',
         'reviews_sequential': 'Reviews Sequential Job',
         'reviews_recent_relevance': 'Reviews Relevance Job',
-        'facility': 'Facility Job'
+        'facility': 'Facility Job',
+        'facility_places': 'Facility Places Job'
     };
     
     const title = `[${workflowNames[currentWorkflow]}] ${new Date().toISOString().split('T')[0]}`;

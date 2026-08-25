@@ -113,6 +113,8 @@ jobs:
             WORKFLOW="reviews_sequential"
           elif echo "$ISSUE_BODY" | grep -q "/run-reviews"; then
             WORKFLOW="reviews"
+          elif echo "$ISSUE_BODY" | grep -q "/run-facility-places"; then
+            WORKFLOW="facility_places"
           elif echo "$ISSUE_BODY" | grep -q "/run-facility"; then
             WORKFLOW="facility"
           fi
@@ -325,11 +327,13 @@ jobs:
               "reviews": ".github/workflows/brightdata_reviews.yml",
               "reviews_sequential": ".github/workflows/reviews_local_interactive_sequential.yml",
               "reviews_recent_relevance": ".github/workflows/reviews_recent_with_relevance.yml",
+              "facility_places": ".github/workflows/main_places_api.yml",
           }
           required_scripts = {
               "facility": [".github/scripts/update_config.py", "facility_BrightData_20.py"],
               "reviews_sequential": ["run_reviews_local_interactive.py", "get_reviews_from_dental_new.py"],
               "reviews_recent_relevance": ["run_reviews_local_interactive.py", "get_reviews_from_dental_new.py", "scripts/enrich_review_relevance_ranks.py"],
+              "facility_places": ["main.py"],
           }
 
           wf_file = workflow_files.get(workflow)
@@ -350,6 +354,11 @@ jobs:
               fid_file = params.get("fid_file")
               if fid_file and not os.path.exists(data_path(fid_file)):
                   errors.append(f"指定された fid_file が存在しません: {fid_file}")
+
+          if workflow == "facility_places":
+              config_file = params.get("config_file") or "settings/settings.json"
+              if not os.path.exists(data_path(config_file)):
+                  errors.append(f"指定された config_file が存在しません: {config_file}")
 
           if workflow in ("reviews_sequential", "reviews_recent_relevance"):
               csv_file = params.get("csv_file")
@@ -536,6 +545,14 @@ jobs:
       summary_file: ${{ fromJson(needs.parse-and-route.outputs.params).summary_file || 'results/relevance_rank_summary.csv' }}
 
 
+  run-facility-places:
+    needs: [parse-and-route, validate-request]
+    if: needs.parse-and-route.outputs.should_run == 'true' && needs.validate-request.outputs.should_execute == 'true' && needs.parse-and-route.outputs.workflow_type == 'facility_places'
+    uses: ./.github/workflows/main_places_api.yml
+    secrets: inherit
+    with:
+      config_file: ${{ fromJson(needs.parse-and-route.outputs.params).config_file || 'settings/settings.json' }}
+
   run-facility:
     needs: [parse-and-route, validate-request]
     if: needs.parse-and-route.outputs.should_run == 'true' && needs.validate-request.outputs.should_execute == 'true' && needs.parse-and-route.outputs.workflow_type == 'facility'
@@ -613,7 +630,7 @@ jobs:
           fi
 
   report-completion:
-    needs: [parse-and-route, validate-request, run-reviews, run-reviews-sequential, run-reviews-relevance, run-facility]
+    needs: [parse-and-route, validate-request, run-reviews, run-reviews-sequential, run-reviews-relevance, run-facility, run-facility-places]
     runs-on: ubuntu-latest
     if: always() && needs.parse-and-route.outputs.should_run == 'true' && needs.validate-request.outputs.should_execute == 'true'
     
@@ -632,7 +649,8 @@ jobs:
               'reviews_sequential': '${{ needs.run-reviews-sequential.result }}',
               'reviews_recent_relevance': '${{ needs.run-reviews-relevance.result }}',
               'reviews': '${{ needs.run-reviews.result }}',
-              'facility': '${{ needs.run-facility.result }}'
+              'facility': '${{ needs.run-facility.result }}',
+              'facility_places': '${{ needs.run-facility-places.result }}'
             };
             
             const workflow = '${{ needs.parse-and-route.outputs.workflow_type }}';
@@ -665,6 +683,10 @@ jobs:
                   const facilityName = path.basename(facilityFile, '.csv');
                   files.push(`- 🔑 **FIDファイル**: \`results/${facilityName}_fid.csv\`（プライベートリポジトリ）`);
                 }
+              } else if (workflow === 'facility_places') {
+                const configFile = params.config_file || 'settings/settings.json';
+                files.push(`- ⚙️ **設定ファイル**: \`${configFile}\`（プライベートリポジトリ）`);
+                files.push(`- 📍 **出力ファイル**: 設定ファイル内の各タスクで指定された \`facility_file\` / \`review_file\`（プライベートリポジトリ）`);
               } else if (workflow === 'reviews' || workflow === 'reviews_sequential' || workflow === 'reviews_recent_relevance') {
                 const reviewFile = params.output_file || params.review_file || params.custom_review_file;
                 if (reviewFile) {

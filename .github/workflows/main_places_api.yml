@@ -1,0 +1,119 @@
+name: Google Places API facility scraper (main.py)
+
+on:
+  workflow_dispatch:  # 手動実行を許可
+    inputs:
+      config_file:
+        description: '設定ファイル (Configuration JSON file)'
+        required: true
+        type: string
+        default: 'settings/settings.json'
+  workflow_call:       # 再利用可能にする
+    inputs:
+      config_file:
+        required: false
+        type: string
+        default: 'settings/settings.json'
+
+jobs:
+  run-places-api-scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Checkout private data
+        uses: actions/checkout@v4
+        with:
+          repository: mememori8888/googlemap
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          path: private-data
+
+      - name: Copy private data to workspace
+        run: |
+          echo "📂 プライベートデータをワークスペースにコピー中..."
+          cp -r private-data/settings ./settings
+          cp -r private-data/results ./results
+          echo "✅ settings/ と results/ をコピーしました"
+          ls -la settings/ results/
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Validate configuration file
+        run: |
+          CONFIG_FILE="${{ github.event.inputs.config_file || inputs.config_file || 'settings/settings.json' }}"
+
+          echo "🔍 Checking configuration file: $CONFIG_FILE"
+
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "❌ Error: Configuration file not found: $CONFIG_FILE"
+            echo ""
+            echo "Available configuration files in settings/:"
+            ls -1 settings/*.json 2>/dev/null || echo "No JSON files found"
+            exit 1
+          fi
+
+          echo "✅ Configuration file exists"
+          echo "📄 File contents (先頭のみ):"
+          head -c 500 "$CONFIG_FILE"
+
+      - name: Run Google Places API facility scraper
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          CONFIG_FILE: ${{ github.event.inputs.config_file || inputs.config_file || 'settings/settings.json' }}
+        timeout-minutes: 300
+        run: |
+          echo "=== Starting Google Places API facility scraper ==="
+          echo "📁 Config file: $CONFIG_FILE"
+          echo "📜 Using script: main.py"
+          echo ""
+          python main.py
+
+      - name: Upload results (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: places-api-results-${{ github.run_number }}
+          path: results/
+          retention-days: 7
+
+      - name: Update file list
+        if: always()
+        run: |
+          echo "🔄 Updating files.json and workflow options..."
+          UPDATE_WORKFLOW_CHOICES=true python update_file_list.py
+
+          echo ""
+          echo "📄 files.json content:"
+          cat docs/webapp/files.json | head -30
+
+      - name: Save results to private repository
+        if: always()
+        run: |
+          set +e  # エラーで停止しない（常にartifactsは取得できるように）
+
+          echo "💾 結果をプライベートリポジトリに保存中..."
+          cp -r results/. private-data/results/ 2>/dev/null || true
+          cp -r settings/. private-data/settings/ 2>/dev/null || true
+
+          cd private-data
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add results/ settings/
+          if git diff --staged --quiet; then
+            echo "ℹ️ プライベートリポジトリに変更なし"
+          else
+            git commit -m "Update Places API results - $(date +'%Y-%m-%d %H:%M:%S')"
+            git pull --rebase origin main || true
+            git push
+            echo "✅ プライベートリポジトリに保存しました"
+          fi
