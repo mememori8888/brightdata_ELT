@@ -359,6 +359,20 @@ jobs:
               config_file = params.get("config_file") or "settings/settings.json"
               if not os.path.exists(data_path(config_file)):
                   errors.append(f"指定された config_file が存在しません: {config_file}")
+              address_csv = params.get("address_csv")
+              if address_csv and not os.path.exists(data_path(address_csv)):
+                  errors.append(f"指定された address_csv が存在しません: {address_csv}")
+              file_roots = {
+                  "address_csv": "settings/",
+                  "facility_file": "results/",
+                  "review_file": "results/",
+                  "update_facility_file": "results/",
+                  "update_review_file": "results/",
+              }
+              for key, root in file_roots.items():
+                  value = str(params.get(key) or "").replace("\\", "/")
+                  if value and (not value.startswith(root) or ".." in value.split("/") or not value.lower().endswith(".csv")):
+                      errors.append(f"{key} は {root}*.csv の形式で指定してください: {value}")
 
           if workflow in ("reviews_sequential", "reviews_recent_relevance"):
               csv_file = params.get("csv_file")
@@ -552,6 +566,11 @@ jobs:
     secrets: inherit
     with:
       config_file: ${{ fromJson(needs.parse-and-route.outputs.params).config_file || 'settings/settings.json' }}
+      address_csv: ${{ fromJson(needs.parse-and-route.outputs.params).address_csv || '' }}
+      facility_file: ${{ fromJson(needs.parse-and-route.outputs.params).facility_file || '' }}
+      review_file: ${{ fromJson(needs.parse-and-route.outputs.params).review_file || '' }}
+      update_facility_file: ${{ fromJson(needs.parse-and-route.outputs.params).update_facility_file || '' }}
+      update_review_file: ${{ fromJson(needs.parse-and-route.outputs.params).update_review_file || '' }}
 
   run-facility:
     needs: [parse-and-route, validate-request]
@@ -686,7 +705,11 @@ jobs:
               } else if (workflow === 'facility_places') {
                 const configFile = params.config_file || 'settings/settings.json';
                 files.push(`- ⚙️ **設定ファイル**: \`${configFile}\`（プライベートリポジトリ）`);
-                files.push(`- 📍 **出力ファイル**: 設定ファイル内の各タスクで指定された \`facility_file\` / \`review_file\`（プライベートリポジトリ）`);
+                if (params.address_csv) files.push(`- 📥 **入力ファイル**: \`${params.address_csv}\`（プライベートリポジトリ）`);
+                const outputFiles = [params.facility_file, params.review_file, params.update_facility_file, params.update_review_file].filter(Boolean);
+                files.push(outputFiles.length
+                  ? `- 📍 **出力ファイル**: ${outputFiles.map(file => `\`${file}\``).join(' / ')}（プライベートリポジトリ）`
+                  : `- 📍 **出力ファイル**: 設定ファイル内の各タスクで指定（プライベートリポジトリ）`);
               } else if (workflow === 'reviews' || workflow === 'reviews_sequential' || workflow === 'reviews_recent_relevance') {
                 const reviewFile = params.output_file || params.review_file || params.custom_review_file;
                 if (reviewFile) {

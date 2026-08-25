@@ -604,7 +604,7 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
     print("施設情報.csvとレビュー情報.csvを更新しました")
     return request_count
 
-def run_from_config(config_file, exclude_gids_path=None):
+def run_from_config(config_file, file_overrides=None):
     try:
         with open(config_file, 'r', encoding='utf-8') as f:
             tasks = json.load(f)
@@ -631,7 +631,35 @@ def run_from_config(config_file, exclude_gids_path=None):
             return raw_path
         return os.path.join(base_dir, raw_path)
 
+    file_overrides = {
+        key: value for key, value in (file_overrides or {}).items() if value
+    }
+    override_roots = {
+        'address_csv_path': 'settings',
+        'facility_file': 'results',
+        'review_file': 'results',
+        'update_facility_path': 'results',
+        'update_review_path': 'results',
+    }
+    for key, value in file_overrides.items():
+        normalized = value.replace('\\', '/')
+        parts = normalized.split('/')
+        expected_root = override_roots.get(key)
+        if (
+            not expected_root
+            or os.path.isabs(value)
+            or '..' in parts
+            or not normalized.startswith(f'{expected_root}/')
+            or not normalized.lower().endswith('.csv')
+        ):
+            raise ValueError(
+                f"Invalid {key}: '{value}'. Expected {expected_root}/*.csv"
+            )
+
     for task in tasks:
+        # Webapp / GitHub Actions から指定されたファイルだけを設定値へ上書きする。
+        # 未指定時は従来どおり settings.json の値を使うため、既存実行との互換性を保つ。
+        task = {**task, **file_overrides}
         task_name = task.get('task_name', '未定義タスク')
         base_query = task.get('query')
         included_type = task.get('includedType')
@@ -684,5 +712,12 @@ def run_from_config(config_file, exclude_gids_path=None):
 
 if __name__ == "__main__":
     CONFIG_FILE = os.environ.get('CONFIG_FILE', 'settings/settings.json')
+    FILE_OVERRIDES = {
+        'address_csv_path': os.environ.get('ADDRESS_CSV_FILE'),
+        'facility_file': os.environ.get('FACILITY_FILE'),
+        'review_file': os.environ.get('REVIEW_FILE'),
+        'update_facility_path': os.environ.get('UPDATE_FACILITY_FILE'),
+        'update_review_path': os.environ.get('UPDATE_REVIEW_FILE'),
+    }
     print(f"🚀 Starting with CONFIG_FILE: {CONFIG_FILE}")
-    run_from_config(CONFIG_FILE)
+    run_from_config(CONFIG_FILE, FILE_OVERRIDES)

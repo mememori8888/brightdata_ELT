@@ -61,6 +61,7 @@ https://github.com/<あなたのアカウント>/brightdata_ELT/settings/secrets
 | `PRIVATE_REPO_PAT` | ご自身のGitHubアカウントで発行するPersonal Access Token。Repository accessに`googlemap`を含め、`Contents: Read and write`権限を付与する | 必須 |
 | `BRIGHTDATA_API_TOKEN` | Bright Dataのダッシュボードで発行するAPIトークン | 必須 |
 | `BRIGHTDATA_ZONE_NAME` | Bright Data側で有効化したSERP APIのゾーン名（例: `serp_api2`） | 必須 |
+| `GOOGLE_MAPS_API_KEY` | Google CloudでPlaces APIを有効化したAPIキー。Google Places API版を実行する場合のみ使用 | Google Places API版で必須 |
 | `GEMINI_API_KEY` | Gemini APIを使う場合のみ発行（現状コード側で無効化されているため未設定でも動作します） | 任意 |
 
 `GITHUB_TOKEN`は登録不要です（GitHub Actionsが自動的に発行します）。
@@ -93,6 +94,8 @@ Playwrightを使った関連度取得機能は現在使用しないため、`GOO
 
 1. `docs/webapp/index.html`をブラウザで開く
 2. 少人数分（10件程度）のテスト用CSVで、レビュー取得または施設取得を選択する
+   - Google Places API版では「入力住所CSV」を選択し、施設・レビュー・各増分CSVの出力先を選択または新規入力する
+   - 未選択のファイルは `settings/settings.json` 内の値が使われる
 3. 「GitHubでIssueを作成」からIssueを作成する
 4. `brightdata_ELT`の「Actions」タブで、ワークフローが起動し、正常に完了するか確認する
 5. `googlemap/results/`に、結果のCSVが保存されているか確認する

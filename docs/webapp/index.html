@@ -284,15 +284,66 @@
                 <!-- Facility Places (Google Places API) Workflow -->
                 <div id="form_facility_places" class="workflow-form" style="display: none;">
                     <h3>🗺️ 施設・レビュー取得設定（Google Places API）</h3>
-                    <p class="section-description">Google Maps Platform の Places API を使って、施設情報とレビューを同時に取得します（設定ファイル内の各タスクを順に実行）</p>
+                    <p class="section-description">Google Maps Platform の Places API を使って、施設情報とレビューを同時に取得します。選択したファイルは設定JSONの値を上書きします</p>
 
                     <div class="form-section">
-                        <h3>📝 設定ファイル</h3>
+                        <h3>📝 入出力ファイル</h3>
 
+                        <div class="form-group">
+                            <label for="places_address_csv">入力住所CSV</label>
+                            <select id="places_address_csv" aria-label="Google Places API 入力住所CSV">
+                                <option value="">（設定ファイルのデフォルトを使用）</option>
+                            </select>
+                            <small>検索対象の住所リスト (settings/*.csv)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="places_facility_file">施設出力CSV</label>
+                            <select id="places_facility_file"><option value="">（設定ファイルのデフォルトを使用）</option></select>
+                        </div>
+                        <div class="form-group" id="places_facility_file_new_container" style="display: none;">
+                            <label for="places_facility_file_new">新しい施設出力ファイル名</label>
+                            <input type="text" id="places_facility_file_new" placeholder="例: places_facilities_test.csv">
+                            <small>results/ は自動補完されます</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="places_review_file">レビュー出力CSV</label>
+                            <select id="places_review_file"><option value="">（設定ファイルのデフォルトを使用）</option></select>
+                        </div>
+                        <div class="form-group" id="places_review_file_new_container" style="display: none;">
+                            <label for="places_review_file_new">新しいレビュー出力ファイル名</label>
+                            <input type="text" id="places_review_file_new" placeholder="例: places_reviews_test.csv">
+                            <small>results/ は自動補完されます</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="places_update_facility_file">増分施設出力CSV</label>
+                            <select id="places_update_facility_file"><option value="">（設定ファイルのデフォルトを使用）</option></select>
+                        </div>
+                        <div class="form-group" id="places_update_facility_file_new_container" style="display: none;">
+                            <label for="places_update_facility_file_new">新しい増分施設ファイル名</label>
+                            <input type="text" id="places_update_facility_file_new" placeholder="例: places_facilities_increment_test.csv">
+                            <small>results/ は自動補完されます</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="places_update_review_file">増分レビュー出力CSV</label>
+                            <select id="places_update_review_file"><option value="">（設定ファイルのデフォルトを使用）</option></select>
+                        </div>
+                        <div class="form-group" id="places_update_review_file_new_container" style="display: none;">
+                            <label for="places_update_review_file_new">新しい増分レビューファイル名</label>
+                            <input type="text" id="places_update_review_file_new" placeholder="例: places_reviews_increment_test.csv">
+                            <small>results/ は自動補完されます</small>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>⚙️ 検索条件の設定</h3>
                         <div class="form-group">
                             <label for="places_config_file">設定ファイル (settings.json) *</label>
                             <input type="text" id="places_config_file" value="settings/settings.json" required aria-required="true" aria-label="設定ファイル（必須）">
-                            <small>検索クエリ・住所CSV・出力先をタスク単位で定義したJSON配列です（address_csv_path / facility_file / review_file 等）。<code>settings/settings.json</code> と同じ「タスクのリスト」形式である必要があり、<code>care_*.json</code> 等の単一タスク形式は使用できません</small>
+                            <small>検索クエリ等の既定値を読み込むJSON配列です。上で選択した入出力ファイルが優先されます</small>
                         </div>
                     </div>
                 </div>

@@ -8,12 +8,47 @@ on:
         required: true
         type: string
         default: 'settings/settings.json'
+      address_csv:
+        description: 'Input address CSV (leave empty to use config)'
+        required: false
+        type: string
+      facility_file:
+        description: 'Facility output CSV (leave empty to use config)'
+        required: false
+        type: string
+      review_file:
+        description: 'Review output CSV (leave empty to use config)'
+        required: false
+        type: string
+      update_facility_file:
+        description: 'Incremental facility output CSV (leave empty to use config)'
+        required: false
+        type: string
+      update_review_file:
+        description: 'Incremental review output CSV (leave empty to use config)'
+        required: false
+        type: string
   workflow_call:       # 再利用可能にする
     inputs:
       config_file:
         required: false
         type: string
         default: 'settings/settings.json'
+      address_csv:
+        required: false
+        type: string
+      facility_file:
+        required: false
+        type: string
+      review_file:
+        required: false
+        type: string
+      update_facility_file:
+        required: false
+        type: string
+      update_review_file:
+        required: false
+        type: string
 
 jobs:
   run-places-api-scraper:
@@ -66,14 +101,28 @@ jobs:
           echo "📄 File contents (先頭のみ):"
           head -c 500 "$CONFIG_FILE"
 
+          ADDRESS_CSV="${{ inputs.address_csv }}"
+          if [ -n "$ADDRESS_CSV" ] && [ ! -f "$ADDRESS_CSV" ]; then
+            echo "❌ Error: Input address CSV not found: $ADDRESS_CSV"
+            exit 1
+          fi
+
       - name: Run Google Places API facility scraper
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           CONFIG_FILE: ${{ github.event.inputs.config_file || inputs.config_file || 'settings/settings.json' }}
+          ADDRESS_CSV_FILE: ${{ inputs.address_csv }}
+          FACILITY_FILE: ${{ inputs.facility_file }}
+          REVIEW_FILE: ${{ inputs.review_file }}
+          UPDATE_FACILITY_FILE: ${{ inputs.update_facility_file }}
+          UPDATE_REVIEW_FILE: ${{ inputs.update_review_file }}
         timeout-minutes: 300
         run: |
           echo "=== Starting Google Places API facility scraper ==="
           echo "📁 Config file: $CONFIG_FILE"
+          echo "📥 Address CSV: ${ADDRESS_CSV_FILE:-default from config}"
+          echo "📍 Facility CSV: ${FACILITY_FILE:-default from config}"
+          echo "⭐ Review CSV: ${REVIEW_FILE:-default from config}"
           echo "📜 Using script: main.py"
           echo ""
           python main.py

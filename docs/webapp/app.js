@@ -586,6 +586,13 @@ async function loadFileOptions() {
         populateDropdown('facility_custom_address_csv', settingsCsvFiles, 'settings', true);
         populateDropdown('facility_custom_facility_file', facilityFiles, 'results', true);
         populateDropdown('facility_custom_exclude_gids_path', excludeFiles, 'settings', true);
+
+        // Google Places API workflow用の入出力ファイル
+        populateDropdown('places_address_csv', addressFiles.length > 0 ? addressFiles : settingsCsvFiles, 'settings', false);
+        populateDropdown('places_facility_file', facilityFiles, 'results', true);
+        populateDropdown('places_review_file', reviewFiles, 'results', true);
+        populateDropdown('places_update_facility_file', addDataFiles, 'results', true);
+        populateDropdown('places_update_review_file', addReviewFiles, 'results', true);
         
     } catch (error) {
         console.error('ファイルオプションの読み込みエラー:', error);
@@ -925,6 +932,11 @@ function getFormData() {
 
         case 'facility_places':
             data.config_file = document.getElementById('places_config_file')?.value || 'settings/settings.json';
+            data.address_csv = document.getElementById('places_address_csv')?.value || '';
+            data.facility_file = resolveSelectedFile('places_facility_file', 'places_facility_file_new', 'results');
+            data.review_file = resolveSelectedFile('places_review_file', 'places_review_file_new', 'results');
+            data.update_facility_file = resolveSelectedFile('places_update_facility_file', 'places_update_facility_file_new', 'results');
+            data.update_review_file = resolveSelectedFile('places_update_review_file', 'places_update_review_file_new', 'results');
             break;
             
     }
@@ -1044,7 +1056,12 @@ function generateIssueBody(data) {
         case 'facility_places':
             body += `### 🗺️ 施設・レビュー取得（Google Places API）\n\n`;
             body += `- **設定ファイル**: \`${data.config_file}\`\n`;
-            body += `Google Places APIを使用して、設定ファイル内の各タスクを順に実行し、施設情報とレビューを同時に取得します\n`;
+            if (data.address_csv) body += `- **入力住所CSV**: \`${data.address_csv}\`\n`;
+            if (data.facility_file) body += `- **施設出力CSV**: \`${data.facility_file}\`\n`;
+            if (data.review_file) body += `- **レビュー出力CSV**: \`${data.review_file}\`\n`;
+            if (data.update_facility_file) body += `- **増分施設出力CSV**: \`${data.update_facility_file}\`\n`;
+            if (data.update_review_file) body += `- **増分レビュー出力CSV**: \`${data.update_review_file}\`\n`;
+            body += `選択したファイルは設定ファイル内の値を上書きします\n`;
             break;
             
     }
@@ -1135,6 +1152,15 @@ function toggleNewFileInput(selectId, inputId) {
     }
 }
 
+function resolveSelectedFile(selectId, newInputId, pathPrefix) {
+    const selected = document.getElementById(selectId)?.value || '';
+    if (selected !== '__NEW_FILE__') return selected;
+
+    const filename = document.getElementById(newInputId)?.value.trim() || '';
+    if (!filename) return '';
+    return filename.startsWith(`${pathPrefix}/`) ? filename : `${pathPrefix}/${filename}`;
+}
+
 // ページ読み込み時にファイルオプションを取得
 document.addEventListener('DOMContentLoaded', function() {
     loadFileOptions();
@@ -1166,6 +1192,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('facility_custom_exclude_gids_path')?.addEventListener('change', function() {
         toggleNewFileInput('facility_custom_exclude_gids_path', 'facility_custom_exclude_gids_path_new');
+    });
+    [
+        ['places_facility_file', 'places_facility_file_new'],
+        ['places_review_file', 'places_review_file_new'],
+        ['places_update_facility_file', 'places_update_facility_file_new'],
+        ['places_update_review_file', 'places_update_review_file_new']
+    ].forEach(([selectId, inputId]) => {
+        document.getElementById(selectId)?.addEventListener('change', function() {
+            toggleNewFileInput(selectId, inputId);
+        });
     });
     
     // ボタンのイベントリスナー
