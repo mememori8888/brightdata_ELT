@@ -57,7 +57,10 @@ END_ROW = int(os.getenv('END_ROW', '0')) if os.getenv('END_ROW') else None  # 0=
 API_TOKEN = os.getenv('BRIGHTDATA_API_TOKEN')
 DATASET_ID = os.getenv('BRIGHTDATA_DATASET_ID', 'gd_luzfs1dn2oa0teb81')  # Google Maps Reviews dataset
 DAYS_BACK = int(os.getenv('DAYS_BACK', '10'))  # デフォルト10日分
-BATCH_SIZE = int(os.getenv('BATCH_SIZE', '100'))  # API 1回あたりの処理件数
+BRIGHTDATA_CONCURRENCY_LIMIT = 20
+BATCH_SIZE = int(os.getenv('BATCH_SIZE', str(BRIGHTDATA_CONCURRENCY_LIMIT)))  # API 1回あたりの処理件数
+if not 1 <= BATCH_SIZE <= BRIGHTDATA_CONCURRENCY_LIMIT:
+    raise ValueError(f'BATCH_SIZE must be between 1 and {BRIGHTDATA_CONCURRENCY_LIMIT}: {BATCH_SIZE}')
 MAX_WAIT_MINUTES = int(os.getenv('MAX_WAIT_MINUTES', '60'))  # スナップショット待機時間
 APPLIED_REVIEW_SORT = 'qualityScore'  # Dataset API default; sort input is rejected by this dataset.
 ALLOW_PARTIAL_FAILURE = os.getenv('ALLOW_PARTIAL_FAILURE', 'false').lower() in ('1', 'true', 'yes')

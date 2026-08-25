@@ -89,8 +89,8 @@ def main():
     parser.add_argument(
         '--batch-size',
         type=int,
-        default=50,
-        help='API 1回あたりの処理件数 (デフォルト: 50)'
+        default=20,
+        help='API 1回あたりの処理件数 (1〜20、デフォルト: 20)'
     )
     
     parser.add_argument(
@@ -315,6 +315,10 @@ def main():
             sys.exit(1)
         
         args.api_token = api_token
+
+    if not 1 <= args.batch_size <= 20:
+        print("❌ エラー: Bright Dataの同時処理数を守るため、--batch-size は1〜20で指定してください")
+        sys.exit(1)
     
     # スクリプトのパス
     script_path = Path(__file__).parent / 'get_reviews_from_dental_new.py'

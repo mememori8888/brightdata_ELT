@@ -518,7 +518,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
     unsaved_rows = []
     unsaved_fid_rows = []
     unsaved_duplicate_rows = []
-    BATCH_SIZE = 50
+    BATCH_SIZE = 20
 
     def save_batch():
         nonlocal unsaved_rows, unsaved_fid_rows, unsaved_duplicate_rows
@@ -786,6 +786,8 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
     cpu = os.cpu_count() or 2
     IO_MULTIPLIER = int(os.environ.get("IO_MULTIPLIER", "3"))
     MAX_WORKERS = int(os.environ.get("MAX_WORKERS", "10"))
+    if not 1 <= MAX_WORKERS <= 20:
+        raise ValueError(f"MAX_WORKERS must be between 1 and 20: {MAX_WORKERS}")
     calc = max(1, cpu * IO_MULTIPLIER)
     
     if total == 0:

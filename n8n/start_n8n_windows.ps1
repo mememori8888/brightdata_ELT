@@ -16,10 +16,12 @@ if (-not (Test-Path -LiteralPath (Join-Path $resolvedDataRoot "results"))) {
 if ([string]::IsNullOrWhiteSpace($StorageState)) {
   $StorageState = Join-Path $repoRoot "n8n\.secrets\google-maps-storage-state.json"
 }
-if (-not (Test-Path -LiteralPath $StorageState)) {
-  throw "Google login state not found: $StorageState`nRun n8n\setup_google_login.ps1 first."
+if (Test-Path -LiteralPath $StorageState) {
+  $resolvedStorageState = (Resolve-Path -LiteralPath $StorageState).Path
+} else {
+  $resolvedStorageState = [IO.Path]::GetFullPath($StorageState)
+  Write-Warning "Google login state does not exist yet. Import and run the semi-manual profile workflow with Codex: $resolvedStorageState"
 }
-$resolvedStorageState = (Resolve-Path -LiteralPath $StorageState).Path
 
 if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
   throw "npx is not available. Install Node.js first: https://nodejs.org/"

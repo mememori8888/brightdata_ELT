@@ -1232,8 +1232,29 @@ async def login_only(args: argparse.Namespace) -> None:
         context = await browser.new_context(**context_options)
         page = await context.new_page()
         await page.goto(args.login_url, wait_until="domcontentloaded", timeout=60000)
-        print("ブラウザでGoogleにログインしてください。完了したら、このPowerShellでEnterを押してください。", flush=True)
-        await asyncio.to_thread(input)
+        if args.login_wait_seconds > 0:
+            print(
+                f"ブラウザでGoogleにログインしてください。{args.login_wait_seconds}秒後にログイン状態を自動保存します。",
+                flush=True,
+            )
+            await asyncio.sleep(args.login_wait_seconds)
+        else:
+            print("ブラウザでGoogleにログインしてください。完了したら、このPowerShellでEnterを押してください。", flush=True)
+            await asyncio.to_thread(input)
+
+        cookies = await context.cookies()
+        google_auth_cookie_names = {
+            "SID", "HSID", "SSID", "APISID", "SAPISID",
+            "__Secure-1PSID", "__Secure-3PSID",
+        }
+        has_google_auth = any(
+            cookie.get("name") in google_auth_cookie_names
+            and "google." in cookie.get("domain", "")
+            for cookie in cookies
+        )
+        if not has_google_auth:
+            raise RuntimeError("Googleログインを確認できません。Codexと画面を確認してから再実行してください。")
+
         args.storage_state.parent.mkdir(parents=True, exist_ok=True)
         await context.storage_state(path=str(args.storage_state.resolve()))
         print(f"Storage state saved: {args.storage_state}", flush=True)
@@ -1253,6 +1274,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--storage-state", type=Path, required=True, help="Googleログイン状態を保存/読込するJSON")
     parser.add_argument("--login-only", action="store_true", help="手動ログインしてstorage_stateだけ保存して終了します")
     parser.add_argument("--login-url", default="https://www.google.com/maps", help="--login-only で開くURL")
+    parser.add_argument("--login-wait-seconds", type=int, default=0, help="n8n用: 指定秒数待ってからstorage_stateを自動保存します")
     parser.add_argument("--rank-limit", type=int, default=10)
     parser.add_argument("--start", type=int, default=1, help="テスト/分割用: 対象施設の開始位置（1始まり）")
     parser.add_argument("--limit", type=int, default=None, help="テスト用: 対象施設数を制限")
@@ -1270,6 +1292,8 @@ def main() -> None:
     global STATE_SAVE_PATH, STATE_STORAGE_PATH
     configure_stdio()
     args = parse_args()
+    if args.login_wait_seconds < 0 or args.login_wait_seconds > 1800:
+        raise SystemExit("--login-wait-seconds は0〜1800秒で指定してください。")
     STATE_STORAGE_PATH = args.storage_state
     STATE_SAVE_PATH = args.storage_state
     if args.login_only:

@@ -33,6 +33,9 @@ Google Places APIはオーナー返信を提供しません。返信が必要な
 - `docs/CLIENT_ACCEPTANCE_TEST_GUIDE.md`: お客様側の受入テスト
 - `docs/CLIENT_HANDOVER_GUIDE.md`: 運用開始・移管手順
 - `docs/n8n_google_reviews_ops.md`: n8nとGoogleログイン状態のローカル操作
+- `docs/GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md`: Public／Privateと長時間処理の判断資料
+
+Bright Dataへ同時に渡す処理数は全経路で最大20です。Dataset逐次版は`api_batch_size × max_parallel_jobs <= 20`をWebAppとActionsの両方で検証します。
 
 ## ローカルテスト
 

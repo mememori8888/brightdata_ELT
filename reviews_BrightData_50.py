@@ -52,7 +52,10 @@ API_ENDPOINT = 'https://api.brightdata.com/request'
 API_TOKEN = os.getenv('BRIGHTDATA_API_TOKEN')
 TIMEOUT = 120  # 2分
 MAX_WORKERS = int(os.getenv('MAX_WORKERS', '10'))  # 並列処理数（環境変数から取得可能）
-BATCH_SIZE = 50  # バッチサイズ
+BRIGHTDATA_CONCURRENCY_LIMIT = 20
+if not 1 <= MAX_WORKERS <= BRIGHTDATA_CONCURRENCY_LIMIT:
+    raise ValueError(f'MAX_WORKERS must be between 1 and {BRIGHTDATA_CONCURRENCY_LIMIT}: {MAX_WORKERS}')
+BATCH_SIZE = 20  # 途中保存間隔。APIの同時実行はMAX_WORKERSで最大20に制限する。
 REVIEW_SORT = os.getenv('REVIEW_SORT', 'qualityScore')  # SERP APIの既定は関連度順。
 def format_review_sort_label(sort_value: str) -> str:
     """SERP APIのソート指定をCSV出力用の説明へ変換する。"""

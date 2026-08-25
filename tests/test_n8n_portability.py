@@ -16,9 +16,22 @@ class N8nPortabilityTests(unittest.TestCase):
         self.assertIn("BRIGHTDATA_ELT_ROOT", workflow_text)
         self.assertIn("GOOGLE_MAPS_STORAGE_STATE", workflow_text)
         self.assertIn("-StorageState", workflow_text)
+        self.assertIn("codex_assisted", workflow_text)
+        self.assertIn("-CodexAssisted", workflow_text)
         self.assertNotIn("profile_dir", workflow_text)
         self.assertNotIn("D:\\\\python", workflow_text)
         self.assertNotIn("C:\\\\Users", workflow_text)
+
+    def test_profile_workflow_is_semiautomatic_and_codex_gated(self):
+        workflow_path = REPOSITORY_ROOT / "n8n/google_profile_semiautomatic_workflow.json"
+        workflow_text = workflow_path.read_text(encoding="utf-8")
+        workflow = json.loads(workflow_text)
+
+        self.assertTrue(workflow["name"].startswith("01 Google profile"))
+        self.assertIn("wait_seconds", workflow_text)
+        self.assertIn("codex_assisted", workflow_text)
+        self.assertIn("-CodexAssisted", workflow_text)
+        self.assertIn("setup_google_login.ps1", workflow_text)
 
     def test_windows_scripts_do_not_fix_a_developer_path(self):
         for relative_path in (
@@ -30,6 +43,11 @@ class N8nPortabilityTests(unittest.TestCase):
             with self.subTest(script=relative_path):
                 self.assertNotIn("D:\\python", source)
                 self.assertNotIn("C:\\Users\\user", source)
+
+        setup_source = (REPOSITORY_ROOT / "n8n/setup_google_login.ps1").read_text(encoding="utf-8")
+        runner_source = (REPOSITORY_ROOT / "n8n/run_local_relevance.ps1").read_text(encoding="utf-8")
+        self.assertIn("[switch]$CodexAssisted", setup_source)
+        self.assertIn("[switch]$CodexAssisted", runner_source)
 
     def test_authentication_state_is_ignored(self):
         root_ignore = (REPOSITORY_ROOT / ".gitignore").read_text(encoding="utf-8")

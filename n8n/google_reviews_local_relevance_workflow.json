@@ -1,5 +1,5 @@
 {
-  "name": "Google Reviews - Local relevance rank",
+  "name": "02 Google Reviews - Data extraction (Codex assisted)",
   "nodes": [
     {
       "parameters": {},
@@ -16,6 +16,12 @@
       "parameters": {
         "assignments": {
           "assignments": [
+            {
+              "id": "codex_assisted",
+              "name": "codex_assisted",
+              "type": "boolean",
+              "value": false
+            },
             {
               "id": "review_file",
               "name": "review_file",
@@ -103,7 +109,7 @@
     },
     {
       "parameters": {
-        "command": "=powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{{$env.BRIGHTDATA_ELT_ROOT}}\\n8n\\run_local_relevance.ps1\" -ReviewFile \"{{$json.review_file}}\" -FacilityFile \"{{$json.facility_file}}\" -RecentReviewGlob \"{{$json.recent_review_glob}}\" -StorageState \"{{$json.storage_state}}\" -OutputFile \"{{$json.output_file}}\" -SummaryFile \"{{$json.summary_file}}\" -RankDetailFile \"{{$json.rank_detail_file}}\" -UnmatchedReviewFile \"{{$json.unmatched_review_file}}\" -RankLimit {{$json.rank_limit}} -Start {{$json.start}} -Limit {{$json.limit}} {{$json.allow_failures ? '-AllowFailures' : ''}}"
+        "command": "=powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{{$env.BRIGHTDATA_ELT_ROOT}}\\n8n\\run_local_relevance.ps1\" -ReviewFile \"{{$json.review_file}}\" -FacilityFile \"{{$json.facility_file}}\" -RecentReviewGlob \"{{$json.recent_review_glob}}\" -StorageState \"{{$json.storage_state}}\" -OutputFile \"{{$json.output_file}}\" -SummaryFile \"{{$json.summary_file}}\" -RankDetailFile \"{{$json.rank_detail_file}}\" -UnmatchedReviewFile \"{{$json.unmatched_review_file}}\" -RankLimit {{$json.rank_limit}} -Start {{$json.start}} -Limit {{$json.limit}} {{$json.allow_failures ? '-AllowFailures' : ''}} {{$json.codex_assisted ? '-CodexAssisted' : ''}}"
       },
       "id": "run-local-relevance",
       "name": "Run local relevance",

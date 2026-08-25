@@ -54,7 +54,7 @@ WebApp → Issue opened → parse-and-route → validate-request
 
 ## データの読書き
 
-- コード: Publicコードリポジトリ
+- コード: 合意した公開範囲のコードリポジトリ（Public推奨、Privateも選択可）
 - 設定・入力・結果: `jmh8128494-cloud/googlemap`
 - 認証: `PRIVATE_REPO_PAT`
 - 主な結果: `googlemap/results/*.csv`

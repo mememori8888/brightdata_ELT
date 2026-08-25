@@ -19,4 +19,8 @@ WebApp → GitHub Issue → GitHub Actions → API処理 → googlemap/results/
 - `faiility_brightdata_new_version.py`: Bright Data施設取得ラッパー
 - `reviews_brightData_new_version.py`: Bright Dataレビュー取得ラッパー
 
+Bright Dataへ同時に渡す処理数は最大20。Datasetのmatrix処理では`api_batch_size * max_parallel_jobs <= 20`を維持する。
+
+n8nはGoogleログイン状態の半手動作成とGoogle Maps関連度抽出だけに使い、どちらもCodex確認済みの`codex_assisted`実行とする。
+
 絶対パスや特定開発環境のワークスペース名をコードへ固定しない。運用・受入条件は`docs/CLIENT_HANDOVER_GUIDE.md`と`docs/CLIENT_ACCEPTANCE_TEST_GUIDE.md`を正本とする。

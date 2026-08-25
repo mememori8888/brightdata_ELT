@@ -357,6 +357,12 @@ jobs:
               fid_file = params.get("fid_file")
               if fid_file and not os.path.exists(data_path(fid_file)):
                   errors.append(f"指定された fid_file が存在しません: {fid_file}")
+              try:
+                  workers = int(str(params.get("workers", "10")))
+                  if not 1 <= workers <= 20:
+                      errors.append("workers は1〜20の整数を指定してください。")
+              except ValueError:
+                  errors.append("workers は整数を指定してください。")
 
           if workflow == "facility_places":
               config_file = params.get("config_file") or "settings/settings.json"
@@ -404,7 +410,8 @@ jobs:
                       except ValueError:
                           errors.append(f"{key} は整数を指定してください。")
 
-              max_parallel_jobs = params.get("max_parallel_jobs", "3")
+              max_parallel_jobs = params.get("max_parallel_jobs", "1")
+              max_parallel_value = None
               try:
                   max_parallel_value = int(str(max_parallel_jobs))
                   if max_parallel_value < 1:
@@ -413,6 +420,15 @@ jobs:
                       errors.append("max_parallel_jobs は3以下を指定してください。")
               except ValueError:
                   errors.append("max_parallel_jobs は整数を指定してください。")
+
+              try:
+                  api_batch_value = int(str(params.get("api_batch_size", "20")))
+                  if api_batch_value > 20:
+                      errors.append("api_batch_size は20以下を指定してください。")
+                  if max_parallel_value is not None and api_batch_value * max_parallel_value > 20:
+                      errors.append("Bright Dataの同時処理数を20以下にするため、api_batch_size × max_parallel_jobs は20以下にしてください。")
+              except ValueError:
+                  pass
 
               if not params.get("dataset_id"):
                   errors.append(f"{workflow} では dataset_id が必須です。")
@@ -535,8 +551,8 @@ jobs:
       rows_per_batch: ${{ fromJson(needs.parse-and-route.outputs.params).rows_per_batch || '500' }}
       max_batches: ${{ fromJson(needs.parse-and-route.outputs.params).max_batches || '0' }}
       batch_wait: ${{ fromJson(needs.parse-and-route.outputs.params).batch_wait || '120' }}
-      api_batch_size: ${{ fromJson(needs.parse-and-route.outputs.params).api_batch_size || '50' }}
-      max_parallel_jobs: ${{ fromJson(needs.parse-and-route.outputs.params).max_parallel_jobs || '3' }}
+      api_batch_size: ${{ fromJson(needs.parse-and-route.outputs.params).api_batch_size || '20' }}
+      max_parallel_jobs: ${{ fromJson(needs.parse-and-route.outputs.params).max_parallel_jobs || '1' }}
       max_wait_minutes: ${{ fromJson(needs.parse-and-route.outputs.params).max_wait_minutes || '90' }}
       dataset_id: ${{ fromJson(needs.parse-and-route.outputs.params).dataset_id || 'gd_luzfs1dn2oa0teb81' }}
       skip_column: ${{ fromJson(needs.parse-and-route.outputs.params).skip_column || 'web' }}
@@ -555,8 +571,8 @@ jobs:
       start_from_batch: ${{ fromJson(needs.parse-and-route.outputs.params).start_from_batch || '1' }}
       rows_per_batch: ${{ fromJson(needs.parse-and-route.outputs.params).rows_per_batch || '500' }}
       max_batches: ${{ fromJson(needs.parse-and-route.outputs.params).max_batches || '0' }}
-      api_batch_size: ${{ fromJson(needs.parse-and-route.outputs.params).api_batch_size || '50' }}
-      max_parallel_jobs: ${{ fromJson(needs.parse-and-route.outputs.params).max_parallel_jobs || '3' }}
+      api_batch_size: ${{ fromJson(needs.parse-and-route.outputs.params).api_batch_size || '20' }}
+      max_parallel_jobs: ${{ fromJson(needs.parse-and-route.outputs.params).max_parallel_jobs || '1' }}
       max_wait_minutes: ${{ fromJson(needs.parse-and-route.outputs.params).max_wait_minutes || '90' }}
       dataset_id: ${{ fromJson(needs.parse-and-route.outputs.params).dataset_id || 'gd_luzfs1dn2oa0teb81' }}
       skip_column: ${{ fromJson(needs.parse-and-route.outputs.params).skip_column || 'web' }}

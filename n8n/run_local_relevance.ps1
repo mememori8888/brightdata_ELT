@@ -23,12 +23,17 @@ param(
   [int]$SlowMo = 0,
   [switch]$Headless,
   [switch]$ForceSortClick,
-  [switch]$AllowFailures
+  [switch]$AllowFailures,
+  [switch]$CodexAssisted
 )
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $scriptPath = Join-Path $repoRoot "scripts\enrich_review_relevance_ranks_state.py"
+
+if (-not $CodexAssisted) {
+  throw "This operation requires an active Codex-assisted session. Re-run with -CodexAssisted after Codex checks the files and run size."
+}
 
 if (-not (Test-Path -LiteralPath $scriptPath)) {
   throw "Local relevance script not found: $scriptPath"

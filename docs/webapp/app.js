@@ -168,9 +168,9 @@ const PRESETS = {
                 sequential_days_back: '10',
                 sequential_start_from_batch: '1',
                 sequential_rows_per_batch: '500',
-                sequential_max_parallel_jobs: '3',
+                sequential_max_parallel_jobs: '1',
                 sequential_batch_wait: '120',
-                sequential_api_batch_size: '50',
+                sequential_api_batch_size: '20',
                 sequential_max_wait_minutes: '90',
                 sequential_dataset_id: 'gd_luzfs1dn2oa0teb81',
                 sequential_skip_column: 'web',
@@ -186,9 +186,9 @@ const PRESETS = {
                 sequential_days_back: '10',
                 sequential_start_from_batch: '1',
                 sequential_rows_per_batch: '500',
-                sequential_max_parallel_jobs: '3',
+                sequential_max_parallel_jobs: '1',
                 sequential_batch_wait: '120',
-                sequential_api_batch_size: '50',
+                sequential_api_batch_size: '20',
                 sequential_max_wait_minutes: '90',
                 sequential_dataset_id: 'gd_luzfs1dn2oa0teb81',
                 sequential_skip_column: 'web',
@@ -204,9 +204,9 @@ const PRESETS = {
                 sequential_days_back: '10',
                 sequential_start_from_batch: '1',
                 sequential_rows_per_batch: '500',
-                sequential_max_parallel_jobs: '3',
+                sequential_max_parallel_jobs: '1',
                 sequential_batch_wait: '120',
-                sequential_api_batch_size: '50',
+                sequential_api_batch_size: '20',
                 sequential_max_wait_minutes: '90',
                 sequential_dataset_id: 'gd_luzfs1dn2oa0teb81',
                 sequential_skip_column: 'GoogleMap',
@@ -222,9 +222,9 @@ const PRESETS = {
                 sequential_days_back: '10',
                 sequential_start_from_batch: '1',
                 sequential_rows_per_batch: '500',
-                sequential_max_parallel_jobs: '3',
+                sequential_max_parallel_jobs: '1',
                 sequential_batch_wait: '120',
-                sequential_api_batch_size: '50',
+                sequential_api_batch_size: '20',
                 sequential_max_wait_minutes: '90',
                 sequential_dataset_id: 'gd_luzfs1dn2oa0teb81',
                 sequential_skip_column: 'web',
@@ -242,9 +242,9 @@ const PRESETS = {
                 sequential_days_back: '30',
                 sequential_start_from_batch: '1',
                 sequential_rows_per_batch: '500',
-                sequential_max_parallel_jobs: '3',
+                sequential_max_parallel_jobs: '1',
                 sequential_batch_wait: '120',
-                sequential_api_batch_size: '50',
+                sequential_api_batch_size: '20',
                 sequential_max_wait_minutes: '90',
                 sequential_dataset_id: 'gd_luzfs1dn2oa0teb81',
                 sequential_skip_column: 'web',
@@ -264,9 +264,9 @@ const PRESETS = {
                 sequential_days_back: '30',
                 sequential_start_from_batch: '1',
                 sequential_rows_per_batch: '500',
-                sequential_max_parallel_jobs: '3',
+                sequential_max_parallel_jobs: '1',
                 sequential_batch_wait: '120',
-                sequential_api_batch_size: '50',
+                sequential_api_batch_size: '20',
                 sequential_max_wait_minutes: '90',
                 sequential_dataset_id: 'gd_luzfs1dn2oa0teb81',
                 sequential_skip_column: 'GoogleMap',
@@ -286,9 +286,9 @@ const PRESETS = {
                 sequential_days_back: '30',
                 sequential_start_from_batch: '1',
                 sequential_rows_per_batch: '500',
-                sequential_max_parallel_jobs: '3',
+                sequential_max_parallel_jobs: '1',
                 sequential_batch_wait: '120',
-                sequential_api_batch_size: '50',
+                sequential_api_batch_size: '20',
                 sequential_max_wait_minutes: '90',
                 sequential_dataset_id: 'gd_luzfs1dn2oa0teb81',
                 sequential_skip_column: 'web',
@@ -308,9 +308,9 @@ const PRESETS = {
                 sequential_days_back: '30',
                 sequential_start_from_batch: '1',
                 sequential_rows_per_batch: '500',
-                sequential_max_parallel_jobs: '3',
+                sequential_max_parallel_jobs: '1',
                 sequential_batch_wait: '120',
-                sequential_api_batch_size: '50',
+                sequential_api_batch_size: '20',
                 sequential_max_wait_minutes: '90',
                 sequential_dataset_id: 'gd_luzfs1dn2oa0teb81',
                 sequential_skip_column: 'web',
@@ -807,9 +807,13 @@ function validateFormEnhanced() {
     if (currentWorkflow === 'reviews') {
         const startLine = parseInt(document.getElementById('start_line')?.value || '0');
         const processCount = parseInt(document.getElementById('process_count')?.value || '0');
+        const workers = parseInt(document.getElementById('reviews_workers')?.value || '0');
         
         if (startLine < 0) errors.push('開始行は0以上を指定してください');
         if (processCount < 0) errors.push('処理件数は0以上を指定してください');
+        if (!Number.isInteger(workers) || workers < 1 || workers > 20) {
+            errors.push('並列実行ワーカー数は1〜20の整数を指定してください');
+        }
     }
 
     if (currentWorkflow === 'reviews_sequential' || currentWorkflow === 'reviews_recent_relevance') {
@@ -851,8 +855,14 @@ function validateFormEnhanced() {
         if (!Number.isInteger(batchWait) || batchWait < 1) {
             errors.push('batch_wait は1以上の整数を指定してください');
         }
-        if (!Number.isInteger(apiBatchSize) || apiBatchSize < 1) {
-            errors.push('api_batch_size は1以上の整数を指定してください');
+        if (!Number.isInteger(apiBatchSize) || apiBatchSize < 1 || apiBatchSize > 20) {
+            errors.push('api_batch_size は1〜20の整数を指定してください');
+        }
+        if (
+            Number.isInteger(apiBatchSize) && Number.isInteger(sequentialMaxParallel) &&
+            apiBatchSize * sequentialMaxParallel > 20
+        ) {
+            errors.push('Bright Dataの同時処理数を20以下にするため、api_batch_size × max_parallel_jobs は20以下にしてください');
         }
         if (!Number.isInteger(maxWaitMinutes) || maxWaitMinutes < 1) {
             errors.push('max_wait_minutes は1以上の整数を指定してください');

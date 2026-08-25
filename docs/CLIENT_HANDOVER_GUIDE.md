@@ -8,11 +8,19 @@
 
 | 用途 | 移管後のリポジトリ・URL | 公開範囲 |
 |---|---|---|
-| コード・Actions・WebApp | `jmh8128494-cloud/brightdata_ELT` | Public |
+| コード・Actions・WebApp | `jmh8128494-cloud/brightdata_ELT` | Public推奨（Privateも選択可） |
 | 設定・入力・結果CSV | `jmh8128494-cloud/googlemap` | Private |
 | 公開WebApp | `https://jmh8128494-cloud.github.io/brightdata_ELT/webapp/` | Public |
 
 `brightdata_ELT`のコード内にあるowner・repository参照は、この移管先へ変更済みです。同期後から所有権移転完了までの間は、WebAppのIssue作成先とActionsのデータ取得先が移管後URLを向くため、実行しないでください。
+
+### Publicを推奨する理由
+
+Publicの標準GitHub-hosted runnerはActions実行分数が無料です。Privateでも1ジョブの上限は原則6時間で変わりませんが、プラン別の月間分数を消費します。
+
+歯科医院のDataset逐次レビュー全件処理は、過去に約2日半かかりました。単一runnerが60時間連続稼働した場合の単純換算は約3,600 runner分です。実際の請求対象分数は、各jobの実行時間とmatrix並列数をActionsの`Usage`で確認します。また、PrivateリポジトリからGitHub Pagesを公開するには対応プランが必要です。
+
+詳細とPrivate化の判断条件は[`GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md`](GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md)を確認してください。
 
 ## 2. 所有権移転の順番
 
@@ -21,7 +29,7 @@
 1. `googlemap`を`jmh8128494-cloud`へTransfer ownershipする
 2. 新オーナーがTransferを承認し、Privateのままであることを確認する
 3. `brightdata_ELT`を`jmh8128494-cloud`へTransfer ownershipする
-4. 新オーナーがTransferを承認し、Publicのままであることを確認する
+4. 新オーナーがTransferを承認し、事前に決めた公開範囲であることを確認する
 5. 両リポジトリの既定ブランチが`main`であることを確認する
 6. 新オーナーのSecretsとPagesを設定してから受入テストを行う
 
@@ -46,7 +54,7 @@ git remote -v
 | `.github/workflows/*.yml` | `repository: jmh8128494-cloud/googlemap` |
 | `issue-ops-universal.yml`の完了リンク | `https://github.com/jmh8128494-cloud/googlemap` |
 | PythonのGitHub ownerフォールバック | `jmh8128494-cloud` |
-| WebAppキャッシュ識別子 | `app.js?v=20260825-workflow-status` |
+| WebAppキャッシュ識別子 | `app.js?v=20260825-concurrency-20` |
 
 移管前の固定値が現行ファイルに残っていないことを確認するコマンド:
 
@@ -107,6 +115,8 @@ rg -n "$oldOwner|GITHUB_REPO = '$oldCodeRepo'|repository: $oldOwner" `
 
 ## 6. GitHub Pages
 
+`brightdata_ELT`をPrivateにする場合は、GitHub Pro、Team、Enterprise等のPrivate Pages対応プランであることを先に確認します。リポジトリがPrivateでも、通常のPagesサイト自体は公開されます。
+
 1. `jmh8128494-cloud/brightdata_ELT`の`Settings` → `Pages`を開く
 2. Sourceで`Deploy from a branch`を選ぶ
 3. Branchを`main`、Folderを`/docs`にする
@@ -130,6 +140,8 @@ SERP依存の3処理は将来の再開に備えてWebAppとActionsへ残して�
 
 Google Places APIはレビューのオーナー返信を返しません。返信が必要な場合はDataset逐次版を使用します。
 
+Bright Dataの同時処理数は最大20です。Dataset逐次版は既定値を`api_batch_size=20`、`max_parallel_jobs=1`とし、2値の積が20を超える設定を拒否します。
+
 ## 8. 受入テスト
 
 詳細は[`CLIENT_ACCEPTANCE_TEST_GUIDE.md`](CLIENT_ACCEPTANCE_TEST_GUIDE.md)に従います。
@@ -149,7 +161,7 @@ Places版の`オーナー返信`、関連度3列、`レビュー要約`が空欄
 
 ## 9. n8n・Googleログイン状態（任意）
 
-ローカルn8nでGoogle Mapsの関連度順位を付ける場合は、[`n8n_google_reviews_ops.md`](n8n_google_reviews_ops.md)を使用します。これはWebAppの受入テストとは別の任意経路です。Googleログイン状態はSecret相当として扱い、リポジトリへ保存しません。
+ローカルn8nは、Googleプロファイルの半手動作成とGoogle Maps関連度順位の抽出に使用します。どちらもCodexの使用が条件です。詳細は[`n8n_google_reviews_ops.md`](n8n_google_reviews_ops.md)を使用します。Googleログイン状態はSecret相当として扱い、リポジトリへ保存しません。
 
 ## 10. 障害時の確認
 
@@ -170,10 +182,20 @@ Issue URL、Actions URL、失敗ステップ、エラー文を記録し、Secret
 ## 11. 移管完了条件
 
 - `jmh8128494-cloud`が両リポジトリのオーナーになっている
-- `googlemap`はPrivate、`brightdata_ELT`はPublicである
+- `googlemap`はPrivateで、`brightdata_ELT`は合意した公開範囲である
 - 両リポジトリの既定ブランチが`main`である
 - 新オーナー自身のPAT・APIキーへ置き換わっている
 - 現行ファイルから旧owner/repositoryの固定参照がなくなっている
 - GitHub Pagesが新URLで公開されている
 - 初回受入対象2処理が成功し、共通15列を確認済みである
 - 受入成功後、旧オーナーのPAT・APIキーを失効している
+
+## 12. 運用開始前に決めること
+
+- `brightdata_ELT`をPublicのままにするか、対応プランとActions budgetを用意してPrivateにするか
+- Privateにする場合の月間Actions budgetと、budget到達時に停止するか課金継続するか
+- 同時処理上限20で10件、100件、1バッチを測定し、全件の所要時間を更新する
+- n8nを操作する担当者がCodexを利用できるか
+- Googleプロファイル用アカウントの管理者、2段階認証、更新担当者
+- Googleログイン状態とGitHub Secretsの更新期限・失効手順
+- Public ActionsログへPrivateデータやAPI応答全文が出ていないか定期確認する担当者
