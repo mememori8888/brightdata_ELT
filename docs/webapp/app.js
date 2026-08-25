@@ -849,14 +849,14 @@ function validateFormEnhanced() {
         if (!Number.isInteger(rowsPerBatch) || rowsPerBatch < 1) {
             errors.push('rows_per_batch は1以上の整数を指定してください');
         }
-        if (!Number.isInteger(sequentialMaxParallel) || sequentialMaxParallel < 1 || sequentialMaxParallel > 3) {
-            errors.push('max_parallel_jobs は1〜3の整数を指定してください');
+        if (sequentialMaxParallel !== 1) {
+            errors.push('WebAppではGitHub Actionsの並列ジョブ数を1に固定しています');
         }
         if (!Number.isInteger(batchWait) || batchWait < 1) {
             errors.push('batch_wait は1以上の整数を指定してください');
         }
-        if (!Number.isInteger(apiBatchSize) || apiBatchSize < 1 || apiBatchSize > 20) {
-            errors.push('api_batch_size は1〜20の整数を指定してください');
+        if (apiBatchSize !== 20) {
+            errors.push('WebAppではBright Data同時処理数を20件に固定しています');
         }
         if (
             Number.isInteger(apiBatchSize) && Number.isInteger(sequentialMaxParallel) &&
@@ -1121,9 +1121,8 @@ function generateIssueBody(data) {
             body += `- **Days back**: ${data.days_back}日\n`;
             body += `- **開始バッチ**: ${data.start_from_batch}\n`;
             body += `- **1バッチ行数**: ${data.rows_per_batch}\n`;
-            body += `- **最大並列バッチ数**: ${data.max_parallel_jobs}バッチ同時実行\n`;
             body += `- **バッチ間待機**: ${data.batch_wait}秒\n`;
-            body += `- **API Batch Size**: ${data.api_batch_size}\n`;
+            body += `- **Bright Data同時処理数**: ${data.api_batch_size}件（固定）\n`;
             body += `- **待機時間上限**: ${data.max_wait_minutes}分\n`;
             body += `- **Dataset ID**: \`${data.dataset_id}\`\n`;
             body += `- **Skip column**: \`${data.skip_column}\`\n`;

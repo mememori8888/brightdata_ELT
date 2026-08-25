@@ -150,16 +150,12 @@
                             <small id="sequential_batch_wait_help">バッチ間待機秒数</small>
                         </div>
 
-                        <div class="form-group">
-                            <label for="sequential_max_parallel_jobs">max_parallel_jobs *</label>
-                            <input type="number" id="sequential_max_parallel_jobs" value="1" min="1" max="3" required aria-required="true" aria-label="最大並列バッチ数" aria-describedby="sequential_max_parallel_jobs_help">
-                            <small id="sequential_max_parallel_jobs_help">APIバッチサイズとの積が20以下になるよう指定</small>
-                        </div>
+                        <input type="hidden" id="sequential_max_parallel_jobs" value="1">
 
                         <div class="form-group">
-                            <label for="sequential_api_batch_size">api_batch_size *</label>
-                            <input type="number" id="sequential_api_batch_size" value="20" min="1" max="20" required aria-required="true" aria-label="APIバッチサイズ（必須）" aria-describedby="sequential_api_batch_size_help">
-                            <small id="sequential_api_batch_size_help">APIに1回で渡す施設件数（最大20）</small>
+                            <label for="sequential_api_batch_size">Bright Data同時処理数</label>
+                            <input type="number" id="sequential_api_batch_size" value="20" min="20" max="20" readonly aria-readonly="true" aria-label="Bright Data同時処理数（20件固定）" aria-describedby="sequential_api_batch_size_help">
+                            <small id="sequential_api_batch_size_help">Dataset APIへ同時に渡す施設数（20件固定）。GitHub Actionsの並列ジョブ数は1に固定しています。</small>
                         </div>
 
                         <div class="form-group">
@@ -409,6 +405,6 @@
     </div>
 
     <!-- フォーム変更時に古いJavaScriptがブラウザに残らないようバージョンを更新する -->
-    <script src="app.js?v=20260825-concurrency-20"></script>
+    <script src="app.js?v=20260825-concurrency-ui"></script>
 </body>
 </html>

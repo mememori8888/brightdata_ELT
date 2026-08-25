@@ -22,9 +22,17 @@ class BrightDataConcurrencyTests(unittest.TestCase):
         app = (REPOSITORY_ROOT / "docs/webapp/app.js").read_text(encoding="utf-8")
 
         self.assertIn('id="sequential_api_batch_size" value="20"', html)
-        self.assertIn('id="sequential_max_parallel_jobs" value="1"', html)
+        self.assertIn('type="hidden" id="sequential_max_parallel_jobs" value="1"', html)
+        self.assertIn('id="sequential_api_batch_size" value="20" min="20" max="20" readonly', html)
+        self.assertIn("Bright Data同時処理数（20件固定）", html)
         self.assertNotIn("sequential_api_batch_size: '50'", app)
+        self.assertEqual(app.count("sequential_api_batch_size: '20'"), 8)
+        self.assertEqual(app.count("sequential_max_parallel_jobs: '1'"), 8)
+        self.assertIn("sequentialMaxParallel !== 1", app)
+        self.assertIn("apiBatchSize !== 20", app)
         self.assertIn("apiBatchSize * sequentialMaxParallel > 20", app)
+        self.assertNotIn("**最大並列バッチ数**", app)
+        self.assertIn("**Bright Data同時処理数**", app)
 
     def test_orchestrator_and_python_entrypoints_enforce_twenty(self):
         orchestrator = (REPOSITORY_ROOT / ".github/workflows/issue-ops-universal.yml").read_text(encoding="utf-8")

@@ -34,7 +34,7 @@ WebAppの「SERP API再開後」グループにある次の3つは、初回受�
 
 API費用と同時pushの競合を避けるため、ワークフローは1件ずつ実行します。前のActionsが終了してから次を開始してください。
 
-Bright Dataへ同時に渡す処理数は最大20です。Dataset逐次版は`api_batch_size=20`、`max_parallel_jobs=1`を既定とし、2値の積が20を超える設定では実行できません。
+Bright Dataへ同時に渡す処理数は最大20です。Dataset逐次版のWebAppでは「Bright Data同時処理数」が20件に固定され、内部のGitHub Actions並列ジョブ数も1に固定されています。Issue・workflow・Pythonでは2値の積が20を超える設定を拒否します。
 
 ## 3. 共通の実行方法
 
@@ -101,9 +101,8 @@ Google Places APIはオーナー返信を返しません。そのため`オー�
 | days_back | `30` |
 | start_from_batch | `1` |
 | rows_per_batch | `20` |
-| max_parallel_jobs | `1` |
 | batch_wait | `1` |
-| api_batch_size | `20` |
+| Bright Data同時処理数 | `20`（WebApp固定） |
 | max_wait_minutes | `10` |
 | dataset_id | WebAppの初期値 |
 | skip_column | `web` |

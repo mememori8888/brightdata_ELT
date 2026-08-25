@@ -140,7 +140,7 @@ SERP依存の3処理は将来の再開に備えてWebAppとActionsへ残して�
 
 Google Places APIはレビューのオーナー返信を返しません。返信が必要な場合はDataset逐次版を使用します。
 
-Bright Dataの同時処理数は最大20です。Dataset逐次版は既定値を`api_batch_size=20`、`max_parallel_jobs=1`とし、2値の積が20を超える設定を拒否します。
+Bright Dataの同時処理数は最大20です。Dataset逐次版のWebAppは「Bright Data同時処理数」を20件、GitHub Actionsの並列ジョブ数を1に固定しています。Issue・workflow・Pythonでは`api_batch_size × max_parallel_jobs`が20を超える設定を拒否します。SERP APIの並列数（レビュー10、施設10、関連度3）は別設定で、既存の安全な既定値を維持します。
 
 ## 8. 受入テスト
 
