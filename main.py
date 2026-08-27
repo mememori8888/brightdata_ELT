@@ -13,10 +13,10 @@ import pandas as pd
 import logging
 import time
 import random
-from math import ceil
-import random
+from pathlib import Path
 
 from address_csv_validator import load_address_queries
+from places_csv_store import PlacesCsvStore, atomic_write_json, places_run_signature
 from review_schema import PLACES_REVIEW_SORT_LABEL, REVIEW_FIELDNAMES
 
 randomC = random.uniform(1,5)
@@ -200,6 +200,7 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
         jitter=True
 
         for attempt in range(1, max_retries + 1):
+          response = None
           try:
               response = requests.post(url, headers=headers, json=data, timeout=15)
               response.raise_for_status()  # ステータスコードが異常な場合、例外を発生させる
@@ -207,11 +208,12 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
 
           except requests.exceptions.RequestException as e:
               error_message = f"APIリクエスト失敗 (試行 {attempt}/{max_retries}): {e}"
-              try:
-                  error_details = response.json()
-                  error_message += f" - 詳細: {error_details}"
-              except (requests.exceptions.JSONDecodeError, AttributeError):
-                  error_message += f" - レスポンスボディ: {response.text}"
+              if response is not None:
+                  try:
+                      error_details = response.json()
+                      error_message += f" - 詳細: {error_details}"
+                  except (requests.exceptions.JSONDecodeError, AttributeError, ValueError):
+                      error_message += f" - レスポンスボディ: {response.text}"
               logging.warning(error_message)
               delay = base ** attempt
               if jitter:
@@ -278,352 +280,210 @@ def update_mini(base_query,api_key, file_path, facility_file, review_file, updat
         except Exception as e:
             logging.error(f"除外GIDリスト '{exclude_gids_path}' の読み込みに失敗しました: {e}")
 
-    # 全体の流れ
-    adress_list = load_address_queries(file_path)
-    #リクエスト数が超過しないようにするためのカウント
+    address_list = load_address_queries(file_path)
     request_count = 0
-    #IDの振り方
-    # ID = 101
-    # review_ID = 1
-    # 施設情報のCSVファイルを読み込む
-    #chunk導入箇所
-    facility_df = pd.DataFrame()
-    if os.path.exists(facility_file) and os.path.getsize(facility_file) > 0:
-        reader = pd.read_csv(facility_file, chunksize=10000)
-        for param in reader:
-            facility_df = pd.concat([facility_df, param])
-        print(f"既存の施設情報ファイル '{facility_file}' を読み込みました。")
-        
-        # 営業ステータス列がない場合は空列として追加（後方互換性）
-        if '営業ステータス' not in facility_df.columns:
-            print("既存施設ファイルに営業ステータス列がありません。空列として追加します。")
-            facility_df['営業ステータス'] = ''
+    request_log = []
+    output_paths = [facility_file, review_file, update_facility_path, update_review_path]
+    signature_conditions = json.dumps(
+        {"query": base_query, "included_type": included_type or ""},
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    signature = places_run_signature(file_path, signature_conditions, output_paths)
+    progress_dir = Path(results_dir) / "progress"
+    progress_path = progress_dir / f"places_{signature}.json"
+    database_path = progress_dir / f"places_{signature}.sqlite3"
+    run_status_path = Path(results_dir) / "places_run_status.json"
+    progress = {}
+    if progress_path.exists():
+        try:
+            progress = json.loads(progress_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            logging.warning("住所処理の進捗JSONを読み込めないため、最初から実行します。")
+    can_resume = (
+        progress.get("signature") == signature
+        and progress.get("status") in {"running", "partial", "failed"}
+        and database_path.exists()
+    )
+    start_address_index = int(progress.get("next_address_index", 0)) if can_resume else 0
+    soft_limit_minutes = max(float(os.environ.get("PLACES_SOFT_LIMIT_MINUTES", "240")), 1.0)
+    started_at = time.monotonic()
 
-        # 緯度・経度の列名ゆれを吸収する（新旧データで 緯度/経度 と latitude/longitude が混在するため）
-        if '緯度' not in facility_df.columns and 'latitude' in facility_df.columns:
-            print("既存施設ファイルの緯度列を latitude から補完します。")
-            facility_df['緯度'] = facility_df['latitude']
-        if '経度' not in facility_df.columns and 'longitude' in facility_df.columns:
-            print("既存施設ファイルの経度列を longitude から補完します。")
-            facility_df['経度'] = facility_df['longitude']
-    else:
-        print(f"施設情報ファイル '{facility_file}' が存在しないか空です。新しく作成します。")
-        # 新しいファイルを作成し、空のDataFrameを初期化
-        facility_df = pd.DataFrame(columns=['施設ID','施設名', '電話番号', '郵便番号', '都道府県','市区町村','住所',"web",'GoogleMap','ランク', 'カテゴリ', '緯度','経度','施設GID','営業ステータス'])
+    store = PlacesCsvStore(
+        database_path,
+        facility_file,
+        review_file,
+        FACILITY_FIELDNAMES,
+        REVIEW_FIELDNAMES,
+        resume=can_resume,
+    )
 
-    # DataFrameの最後の行を取得
+    def write_progress(status, next_address_index, error_type=""):
+        payload = {
+            "signature": signature,
+            "status": status,
+            "address_csv": str(file_path),
+            "search_query": base_query,
+            "included_type": included_type or "",
+            "output_files": [str(path) for path in output_paths],
+            "completed_address_rows": next_address_index,
+            "next_address_index": next_address_index,
+            "total_address_rows": len(address_list),
+            "request_count": request_count,
+            "error_type": error_type,
+            "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+        atomic_write_json(progress_path, payload)
+        atomic_write_json(run_status_path, payload)
+
+    def export_checkpoint():
+        store.export(facility_file, review_file, update_facility_path, update_review_path)
+        counts = store.counts()
+        print(
+            "SQLite照合結果: "
+            f"施設{counts['facilities']}件（新規{counts['new_facilities']}件）、"
+            f"レビュー{counts['reviews']}件（新規{counts['new_reviews']}件）"
+        )
+
     try:
-        last_row = facility_df.iloc[-1]
-        print(f"施設情報の最後は{last_row}")
-        # 最後の施設IDを取得
-        last_facility_id = last_row['施設ID'] + 1
-        # print(last_facility_id)
-        # print(type(last_facility_id))
-    except:
-        last_facility_id = 101
-    # レビュー情報.csvを読み込む
-    review_df = pd.DataFrame()
-    if os.path.exists(review_file) and os.path.getsize(review_file) > 0:
-        reader = pd.read_csv(review_file, chunksize=10000)
-        for param in reader:
-            review_df = pd.concat([review_df, param])
-        print(f"既存のレビュー情報ファイル '{review_file}' を読み込みました。")
-        
-    else:
-        print(f"レビュー情報ファイル '{review_file}' が存在しないか空です。新しく作成します。")
-        # 新しいファイルを作成し、空のDataFrameを初期化
-        review_df = pd.DataFrame(columns=REVIEW_FIELDNAMES)
+        if can_resume:
+            print(f"住所処理を{start_address_index + 1}行目から再開します。")
 
-    # 旧9列・旧12列のファイルも不足列を空欄で補い、全取得経路と同じ15列へ揃える。
-    review_df = normalize_review_dataframe(review_df)
+        for address_index in range(start_address_index, len(address_list)):
+            if (time.monotonic() - started_at) / 60 >= soft_limit_minutes:
+                export_checkpoint()
+                write_progress("partial", address_index, "soft_deadline")
+                print(
+                    f"{soft_limit_minutes:g}分のソフト上限に到達したため、"
+                    f"住所{address_index + 1}行目から次回再開します。"
+                )
+                return request_count
 
-    # レビューがありませんを除外
-    try:
-        new_review_df = review_df[~review_df['レビューID'].astype(str).str.contains('レビューがありません', na=False)]
-    except:
-        new_review_df = review_df
-    # 最後のレビューIDを取得
-    # print(type(new_review_df))
-    # print(new_review_df)
-    try:
-        last_review = new_review_df.iloc[-1]
-        last_review_id = int(last_review['レビューID']) + 1
-        # print(last_review_id)
-    except:
-        last_review_id = 1
-
-    # 既存のGIDとIDの対応を高速に検索できるように準備
-    existing_gids = set(facility_df['施設GID'])
-    existing_review_gids = set(review_df['レビューGID'].dropna().astype(str))
-    gid_to_id_map = facility_df.set_index('施設GID')['施設ID'].to_dict()
-
-    
-    update_list = []
-    request_log = [] # 各クエリのリクエスト回数を記録するリスト
-    for query in adress_list:
-        # 初期化
-        search_query = f'{query} {base_query}'
-        print(f'現在の検索キーワード　{query} {base_query} ')        
-        page_token = None
-        if 'end end' in query:
-            break
-        elif 'a b' in query:
-            continue
-
-        query_request_count = 0 # このクエリのリクエスト回数カウンター
-
-        while True:
-            time.sleep(2)
-            request_count += 1
-            query_request_count += 1
-            results = search_places(api_key, search_query,fields, page_token,**params)
-#jsonファイルをダウンロードした場合はここからやる。
-
+            query = address_list[address_index]
+            search_query = f'{query} {base_query}'
+            print(f'現在の検索キーワード　{query} {base_query} ')
+            page_token = None
+            query_request_count = 0
+            store.begin_address()
             try:
-                results['places']
-                print("responseがありました。")
-                print(results['places'])
-                
-            except:
-                print("responseがありませんでした。")
-                break
-            
-            for result in results['places']:
-                
-                facility_id = result.get('id')
+                while True:
+                    time.sleep(2)
+                    request_count += 1
+                    query_request_count += 1
+                    results = search_places(api_key, search_query, fields, page_token, **params)
+                    places = results.get('places') or []
+                    if not places:
+                        print("responseがありませんでした。")
+                        break
+                    print(f"responseがありました。施設数: {len(places)}")
 
-                if facility_id in exclude_gids:
-                    print(f"GID '{facility_id}' は除外リストに含まれているためスキップします。")
-                    continue
-
-                if facility_id:
-                    if facility_id not in existing_gids:
-                        ID = last_facility_id
-                        last_facility_id += 1
-                        print('新しい施設です。')
-                    else: # 既存の施設の場合
-                        ID = gid_to_id_map[facility_id]
-                else:
-                    ID = last_facility_id
-                    last_facility_id += 1
-                    facility_id = '#N/A'
-                    logging.warning(f"Place IDが取得できませんでした。新しいIDを採番します。")
-
-                facility_name = result.get('displayName', {}).get('text', '#N/A')
-               
-                prefecture = '?' #初期化
-                city = '?' #初期化
-                try:
-                    facility_adress = result.get('formattedAddress', '')
-                    postal_code, address = split_address(facility_adress)
-                    address = address.replace('日本、', '')
-                    for component in result.get("addressComponents", []):
-                        if "administrative_area_level_1" in component["types"]:
-                            prefecture = component["longText"]
-                        elif "locality" in component["types"]:
-                            city = component["longText"]
-                        elif "administrative_area_level_2" in component["types"]:
-                            city = component["longText"]
-                except:
-                    address = '#N/A '
-                    postal_code = '#N/A '
-                    prefecture = '#N/A '
-                    city = '#N/A '
-                    # print('住所はありません')
-                try:
-                    facility_tell = result['nationalPhoneNumber']
-                    # print(f"電話番号: {result['nationalPhoneNumber']}")
-                except:
-                    facility_tell = '#N/A '
-                    # print('電話番号はありません')
-                try:
-                    facility_location = result['location']
-                    #   {'latitude': 34.7144547, 'longitude': 135.5135757}
-                    # f-stringを使ってフォーマットを指定
-                    facility_lati = f"{facility_location['latitude']}"
-                    facility_long = f"{facility_location['longitude']}"
-                except:
-                    facility_location = '#N/A '
-                    facility_lati = '#N/A '
-                    facility_long = '#N/A '
-                    # print('緯度経度はありません。')
-                try:
-                    facility_rank = result['rating']
-                    # print(f"星ランク:{result['rating']}")
-                except:
-                    facility_rank = '#N/A '
-                    # print(f'星ランクはありません')
-                try:
-                    facility_cat = result['primaryTypeDisplayName']['text']
-                    # print(f"カテゴリ？:{result['primaryTypeDisplayName']['text']}")
-                    #N/Aと斎場だった場合、とそれ以外の場合に分ける。
-                except:
-                    facility_cat = '#N/A'
-                    # print('カテゴリはありません。')
-                try:
-                    facility_web = result['websiteUri']
-                except:
-                    facility_web = '#N/A '
-                try:
-                    facility_gmap = result['googleMapsUri']
-                except:
-                    facility_gmap = '#N/A '
-                try:
-                    facility_region_text = result['adrFormatAddress']
-                    facility_region = bs_address(facility_region_text)
-                except:
-                    facility_region = ['#N/A ','#N/A ']
-                
-                if postal_code is not None and prefecture is not None and city is not None:
-                    address = address.replace(postal_code,'').replace(prefecture,'').replace(city,'')
-                else:
-                    # addressがNoneの場合の処理を記述
-                    address = '#N/A'
-                    print("住所情報が見つからなかったため、置換処理をスキップしました。")
-
-                # レビューのループを作る
-                try:
-                    for display_order, param in enumerate(result['reviews'], start=1):
-                        preview_row = build_places_review_row(
-                            param,
-                            assigned_review_id=last_review_id,
-                            facility_id=ID,
-                            facility_gid=facility_id,
-                            display_order=display_order,
-                        )
-                        review_gid = str(preview_row['レビューGID'])
-                        if review_gid and review_gid in existing_review_gids:
+                    for result in places:
+                        facility_gid = str(result.get('id') or '').strip()
+                        if not facility_gid:
+                            logging.warning("Place IDが空の施設は重複照合できないためスキップします。")
+                            continue
+                        if facility_gid in exclude_gids:
+                            print(f"GID '{facility_gid}' は除外リストに含まれているためスキップします。")
                             continue
 
-                        print("新しいreviewがありました。")
-                        review_ID = last_review_id
-                        last_review_id += 1
-                        review_row = {
-                            **preview_row,
-                            'レビューID': review_ID,
+                        facility_name = result.get('displayName', {}).get('text', '#N/A')
+                        prefecture = '?'
+                        city = '?'
+                        try:
+                            formatted_address = result.get('formattedAddress', '')
+                            postal_code, address = split_address(formatted_address)
+                            address = address.replace('日本、', '')
+                            for component in result.get("addressComponents", []):
+                                if "administrative_area_level_1" in component.get("types", []):
+                                    prefecture = component.get("longText", "?")
+                                elif "locality" in component.get("types", []):
+                                    city = component.get("longText", "?")
+                                elif "administrative_area_level_2" in component.get("types", []):
+                                    city = component.get("longText", "?")
+                        except Exception:
+                            address = '#N/A '
+                            postal_code = '#N/A '
+                            prefecture = '#N/A '
+                            city = '#N/A '
+
+                        facility_tell = result.get('nationalPhoneNumber', '#N/A ')
+                        facility_location = result.get('location') or {}
+                        facility_lati = facility_location.get('latitude', '#N/A ')
+                        facility_long = facility_location.get('longitude', '#N/A ')
+                        facility_rank = result.get('rating', '#N/A ')
+                        facility_cat = (result.get('primaryTypeDisplayName') or {}).get('text', '#N/A')
+                        facility_web = result.get('websiteUri', '#N/A ')
+                        facility_gmap = result.get('googleMapsUri', '#N/A ')
+
+                        if postal_code and prefecture and city:
+                            address = address.replace(str(postal_code), '').replace(str(prefecture), '').replace(str(city), '')
+                        else:
+                            address = '#N/A'
+
+                        facility_row = {
+                            '施設ID': '',
+                            '施設名': facility_name,
+                            '電話番号': facility_tell,
+                            '郵便番号': postal_code or '',
+                            '都道府県': prefecture,
+                            '市区町村': city,
+                            '住所': address,
+                            'web': facility_web,
+                            'GoogleMap': facility_gmap,
+                            'ランク': facility_rank,
+                            'カテゴリ': facility_cat,
+                            '緯度': facility_lati,
+                            '経度': facility_long,
+                            '施設GID': facility_gid,
+                            '営業ステータス': '',
                         }
-                        existing_review_gids.add(review_gid)
+                        assigned_facility_id, is_new_facility = store.add_facility(facility_row)
+                        if is_new_facility:
+                            print('新しい施設です。')
 
-                        facility_values = [
-                            ID, facility_name, facility_tell, postal_code, prefecture, city,
-                            address, facility_web, facility_gmap, facility_rank, facility_cat,
-                            facility_lati, facility_long, facility_id, ''
-                        ]
-                        review_values = [
-                            review_row['レビューID'],
-                            review_row['施設GID'],
-                            *[review_row[column] for column in REVIEW_FIELDNAMES[3:]],
-                        ]
-                        update_list.append([*facility_values, *review_values])
+                        for display_order, review in enumerate(result.get('reviews') or [], start=1):
+                            review_row = build_places_review_row(
+                                review,
+                                assigned_review_id='',
+                                facility_id=assigned_facility_id,
+                                facility_gid=facility_gid,
+                                display_order=display_order,
+                            )
+                            if not str(review_row.get('レビューGID') or '').strip():
+                                logging.warning("レビューGIDが空のためレビューをスキップします。")
+                                continue
+                            _, is_new_review = store.add_review(review_row)
+                            if is_new_review:
+                                print("新しいreviewがありました。")
 
-                    
-                except:
-                    print("レビューがありません")
-                    continue
-                
-                        
-                    
-            
-            # 追記するデータ (例: 複数のデータをリストで持つ)    
-            # 次のページのトークンを取得
-            page_token = results.get('nextPageToken')
-            # 次のページのトークンがなければループを終了
-            print(f'リクエスト {request_count}回目 (クエリ内 {query_request_count}回目)')
-            if not page_token:
-                break
-        
-        # クエリごとのリクエスト回数を記録
-        request_log.append({'query': query, 'request_count': query_request_count})
-            
-    # update_listの重複削除
+                    page_token = results.get('nextPageToken')
+                    print(f'リクエスト {request_count}回目 (クエリ内 {query_request_count}回目)')
+                    if not page_token:
+                        break
 
-    # リスト内のリストをタプルに変換
-    # tuple_list = [tuple(item) for item in update_list]
-    # Pandas DataFrameに変換
-    update_df = pd.DataFrame(columns=UPDATE_FIELDNAMES)
-    if update_list:
-        seperate_num = 10
-        chunk_num = ceil(len(update_list) / seperate_num)
-        result = list(chunks(update_list,chunk_num))
-        # print(result)
-        tuple_list = [tuple(item) for item in result]
-        for param in tuple_list:
-            con_df = pd.DataFrame(param, columns=UPDATE_FIELDNAMES)
-            update_df = pd.concat([update_df,con_df])
+                store.commit_address()
+                request_log.append({'query': query, 'request_count': query_request_count})
+                write_progress("running", address_index + 1)
+            except BaseException:
+                store.rollback_address()
+                export_checkpoint()
+                write_progress("failed", address_index, "api_or_processing_error")
+                raise
 
-    
-    # update_df.to_csv('update.csv', index=False, encoding='utf-8')  # index=False でインデックス列を出力しない
-    # print("update_dfの出力")
-    # print(update_df)
-    # CSVファイルに出力
-    # 施設IDから経度緯度までのDataFrameを作成
-
-
-    update_df_facility = update_df[FACILITY_FIELDNAMES]
-    # 施設IDとレビューID～レビュー本文のDataFrameを作成
-    update_df_review = update_df[['レビューID', '施設ID', *REVIEW_UPDATE_FIELDNAMES[1:]]].rename(
-        columns={'施設GID_レビュー': '施設GID'}
-    )
-    update_df_review = normalize_review_dataframe(update_df_review)
-    # 列名 (文字列) をリストで指定
-    subset_cols = ['施設GID']
-    # 重複を削除
-    update_df_facility = update_df_facility.drop_duplicates(subset=subset_cols)
-    update_df_facility = update_df_facility.dropna(subset=subset_cols)
-
-        # 列名 (文字列) をリストで指定
-    subset_review_cols = ['レビューGID']
-    # 重複を削除
-    update_df_review = update_df_review.drop_duplicates(subset=subset_review_cols).dropna(subset=subset_review_cols)
-    #施設増分とレビュー増分の出力
-    split_to_csv(update_df_facility,update_facility_path,chunksize=10000,mode='w')
-    split_to_csv(update_df_review,update_review_path,chunksize=10000,mode='w')
-    # update_df_facility.to_csv('葬儀施設増分.csv',mode = 'w', index=False, encoding='utf-8')
-    # update_df_review.to_csv('葬儀レビュー増分.csv',mode = 'w', index=False, encoding='utf-8')
-    # 既存のdfにupdate_dfを追加
-    # 行方向に結合
-    added_facility_df = pd.concat([facility_df, update_df_facility])
-    added_review_df = normalize_review_dataframe(pd.concat([review_df, update_df_review]))
-    # 重複削除
-    # 列名 (文字列) をリストで指定
-    subset_cols = ['施設GID']
-
-    # 重複を削除
-    added_facility_df = added_facility_df.drop_duplicates(subset=subset_cols).dropna(subset=subset_cols)
-
-    # 緯度・経度の列名ゆれを吸収する（latitude/longitude 列を持つ既存ファイルとの互換性維持のため、双方向に同期する）
-    if 'latitude' in added_facility_df.columns and '緯度' in added_facility_df.columns:
-        added_facility_df['latitude'] = added_facility_df['latitude'].fillna(added_facility_df['緯度'])
-    if 'longitude' in added_facility_df.columns and '経度' in added_facility_df.columns:
-        added_facility_df['longitude'] = added_facility_df['longitude'].fillna(added_facility_df['経度'])
-    
-        # 列名 (文字列) をリストで指定
-    subset_review_cols = ['レビューGID']
-
-    # 重複を削除
-    added_review_df = added_review_df.drop_duplicates(subset=subset_review_cols).dropna(subset=subset_review_cols)
-    print(added_facility_df)
-    print(added_review_df)
-    # CSVファイルに出力
-    # added_facility_df.to_csv('葬儀施設.csv', index=False, encoding='utf-8')
-    # added_review_df.to_csv('葬儀レビュー.csv', index=False, encoding='utf-8')
-    split_to_csv(added_facility_df,facility_file,chunksize=10000,mode='w')
-    split_to_csv(added_review_df,review_file,chunksize=10000,mode='w')
-            
-    # dfから施設とレビューに分ける
-
-    # リクエスト回数のログをCSVに出力
-    request_log_df = pd.DataFrame(request_log)
-    # request_log_path = os.path.join(os.path.dirname(facility_file), 'request_counts.csv')
-    # request_log_df.to_csv(request_log_path, index=False, encoding='utf-8-sig')
-    # print(f"各クエリのリクエスト回数を '{request_log_path}' に保存しました。")
-    print("施設情報.csvとレビュー情報.csvを更新しました")
-    # Windowsでも一時・出力ディレクトリを直ちに扱えるよう、今回のログを閉じる。
-    for handler in logging.root.handlers[:]:
-        if isinstance(handler, logging.FileHandler) and handler.baseFilename == os.path.abspath(log_file_path):
-            logging.root.removeHandler(handler)
-            handler.close()
-    return request_count
+        export_checkpoint()
+        write_progress("success", len(address_list))
+        store.close(remove_database=True)
+        store = None
+        print("施設情報.csvとレビュー情報.csvを更新しました")
+        return request_count
+    finally:
+        if store is not None:
+            store.close()
+        # Windowsでも一時・出力ディレクトリを直ちに扱えるよう、今回のログを閉じる。
+        for handler in logging.root.handlers[:]:
+            if isinstance(handler, logging.FileHandler) and handler.baseFilename == os.path.abspath(log_file_path):
+                logging.root.removeHandler(handler)
+                handler.close()
 
 def run_from_config(config_file, file_overrides=None):
     try:

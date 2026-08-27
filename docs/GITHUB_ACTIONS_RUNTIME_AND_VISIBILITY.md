@@ -1,12 +1,12 @@
 # GitHub Actions・公開範囲・実行時間
 
-更新日: 2026-08-25
+更新日: 2026-08-27
 
 ## 結論
 
-コードリポジトリをPublicにしている主な理由は、標準GitHub-hosted runnerのActions実行分数がPublicリポジトリでは無料になるためです。Publicにしても1ジョブの実行時間上限が長くなるわけではありません。
+コードリポジトリをPublicにする主な理由は、標準GitHub-hosted runnerのActions実行分数がPublicリポジトリでは無料になるためです。Publicにしても1ジョブの標準上限が6時間より長くなるわけではありません。
 
-Privateへ変更することも可能ですが、月間のActions分数、超過料金、GitHub Pagesを使えるプランかを先に確認します。設定・入力・結果を保存する`googlemap`は引き続きPrivateにします。
+Privateへ変更することもできますが、月間Actions分数、超過料金、GitHub Pagesを利用できるプランかを事前に確認します。設定、入力、結果を保存する`jmh8128494-cloud/googlemap`はPrivateを維持します。
 
 ## PublicとPrivateの違い
 
@@ -15,8 +15,7 @@ Privateへ変更することも可能ですが、月間のActions分数、超過
 | 標準GitHub-hosted runner | 無料 | プランの月間分数を消費し、超過分は課金対象 |
 | 1ジョブの標準上限 | 原則6時間 | 原則6時間 |
 | GitHub Pages | GitHub Freeでも利用可能 | Pro、Team、Enterprise等の対応プランが必要 |
-| ソースコード | 誰でも閲覧可能 | 許可ユーザーのみ |
-| Actionsログ | 公開 | 許可ユーザーのみ |
+| ソースコード・Actionsログ | 公開 | 許可ユーザーのみ |
 
 公式情報:
 
@@ -25,40 +24,72 @@ Privateへ変更することも可能ですが、月間のActions分数、超過
 - [GitHub-hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
 - [GitHub Pages site creation](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)
 
+## demoの長時間実行実績
+
+確認対象は、demoリポジトリのDataset逐次レビュー全件runです。
+
+| 項目 | 確認値 |
+|---|---:|
+| 経過時間 | 約60時間22分（約2日半） |
+| matrixバッチ | 134バッチ（22～155） |
+| 成功 | 94バッチ |
+| 失敗 | 40バッチ |
+| 6時間timeout | 0バッチ |
+| マージ行数 | 66,358件 |
+| 新規追加 | 34,227件 |
+| Privateリポジトリ保存 | 成功 |
+
+このrunは「全バッチ成功」ではありません。94バッチの成功成果をマージしてPrivateリポジトリへ保存できた部分完了です。Actions全体は40バッチの失敗によりfailureでした。
+
+実行時の主設定は`rows_per_batch=500`、`api_batch_size=20`、`max_parallel_jobs=3`、`max_wait_minutes=90`でした。現在はBright Data全体上限20を守るため、`api_batch_size=20`、`max_parallel_jobs=1`へ固定しており、過去の60同時処理設定は復元しません。そのため現在設定の全件経過時間は、この過去実績より長くなる可能性があります。
+
 ## Privateにした場合の分数
 
-GitHub公式の月間無料枠は、GitHub Freeが2,000分、GitHub Proが3,000分、GitHub Teamが3,000分です。枠を超えた分は支払方法とbudget設定に従って課金または停止します。
+約60時間22分は壁時計時間です。請求対象分数は、matrixの各job、セットアップ、マージ、再実行を合計するため、単純に60時間22分とはなりません。対象runの`Actions` → `Usage`で確認してください。
 
-歯科医院のDataset逐次レビュー取得では、過去の全件処理に約2日半かかりました。これはおよそ60時間で、1台のrunnerが連続実行したと仮定する単純換算は約3,600 runner分です。実際の請求対象分数は、runnerが動いていない待ち時間を除き、matrixの並列ジョブ、セットアップ、再実行をjobごとに加算するため、対象runの`Usage`で確認します。
+Privateへ変更する場合は、10件、100件、1バッチの順で現在設定を実測し、次を記録して月間利用量と予算を見積もります。
 
-Privateへ変更しても処理内容が同じなら、経過時間の計画値はまず約2日半以上とします。ただし、Bright Dataの同時処理上限を20へ下げた後は以前より長くなる可能性があるため、10件、100件、1バッチの実測から全体時間を再計算します。
-
-正確な分数は対象runの`Actions` → `Usage`で確認します。
+- 1 APIチャンクの平均時間と最大時間
+- 500行バッチの平均時間と最大時間
+- 予定バッチ数
+- setup、Artifact、mergeの追加時間
+- 失敗範囲の手動再実行分
 
 ## 6時間上限への対応
 
-現在の大量処理は1つのジョブを2日半動かしていません。施設CSVを複数バッチへ分け、各ジョブを5時間以内にし、途中成果をArtifactへ保存して最後にマージします。
+1つのjobを約2日半動かす設計ではありません。施設CSVを最大500行のmatrixバッチへ分け、次の明示上限を設定しています。
 
-- 各GitHub-hosted job: 5時間以内
-- 全バッチの完了: 約2日半の実績あり
-- 失敗時: 成功バッチを残し、開始バッチを指定して再開
+- stepを持つ全job: 最大300分
+- Dataset API、Places API、SERP API、Playwrightの長時間step: 最大270分
+- merge・復旧: 30～180分
+- 検証・ルーティング・ファイル一覧: 30～60分
 
-Public／Privateのどちらでも、この分割・途中保存・再開設計は必要です。
+270分でAPI stepを止め、job上限までの残り30分で状態JSON、途中CSV、ログをArtifactとPrivateリポジトリへ保存します。逐次レビューは各APIチャンク後、施設取得は住所ごとにチェックポイントを更新します。
+
+結果は次の3状態で扱います。
+
+- `success`: 全対象が成功。Datasetの正常なレビュー0件も含む。
+- `partial`: 成功成果があり、別のバッチ・住所が失敗またはソフト上限へ到達。
+- `failed`: 成功成果がない、または入力・認証・API trigger等で開始できない。
+
+逐次レビューの部分完了では成功バッチを必ずマージし、Issueへ失敗バッチ番号、開始行、終了行、完了チャンク数を表示します。自動再試行は行わず、該当範囲だけを手動再実行します。Google Places／SERP施設の部分完了は、同じ住所CSV・検索条件・出力先で再実行すると未処理住所から再開します。
+
+詳しい上限と成果物は[`PROGRAM_AND_WORKFLOW_REFERENCE.md`](PROGRAM_AND_WORKFLOW_REFERENCE.md)を参照してください。
 
 ## 推奨判断
 
-次の条件ならPublicのままを推奨します。
+Publicのままが向く条件:
 
 - コード自体を公開して問題がない
-- 長時間の標準runner利用料金を抑えたい
+- 標準runner利用料金を抑えたい
 - GitHub FreeでPagesを公開したい
 - Secrets、設定、入力、結果をPrivateリポジトリへ分離できている
 
-次の条件ならPrivateを検討します。
+Privateが向く条件:
 
-- ソースコードやActionsログの非公開を優先する
-- Pro、Team等の必要プランとActions超過料金を許容できる
+- ソースコードとActionsログの非公開を優先する
+- 対応プランとActions超過料金を許容できる
 - 月間budgetと利用停止条件を設定できる
-- Privateリポジトリ由来のPages公開条件を確認済み
+- Private Pagesの利用条件を確認済み
 
-Publicで運用する場合も、Actionsログへ施設データ、認証情報、API応答全文を出さないことが必須です。
+Public運用でも、認証情報、Private CSVの内容、API応答全文をActionsログへ出さないことが必須です。

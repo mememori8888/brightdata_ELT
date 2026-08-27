@@ -1,6 +1,6 @@
 # クライアント向け運用開始・移管ガイド
 
-更新日: 2026-08-26
+更新日: 2026-08-27
 
 この文書は、所有権移転後の新オーナーを`jmh8128494-cloud`として記載しています。
 
@@ -18,9 +18,11 @@
 
 Publicの標準GitHub-hosted runnerはActions実行分数が無料です。Privateでも1ジョブの上限は原則6時間で変わりませんが、プラン別の月間分数を消費します。
 
-歯科医院のDataset逐次レビュー全件処理は、過去に約2日半かかりました。単一runnerが60時間連続稼働した場合の単純換算は約3,600 runner分です。実際の請求対象分数は、各jobの実行時間とmatrix並列数をActionsの`Usage`で確認します。また、PrivateリポジトリからGitHub Pagesを公開するには対応プランが必要です。
+歯科医院のDataset逐次レビュー全件処理は、過去に約60時間22分かかりました。このrunは134バッチ中94成功・40失敗、timeout 0件で、成功分66,358件をマージし34,227件を新規追加してPrivateリポジトリへ保存した部分完了です。現在は過去の3並列ではなく1並列へ固定したため、全件時間は再実測します。実際の請求対象分数は、各jobとmatrixの実行時間をActionsの`Usage`で確認します。また、PrivateリポジトリからGitHub Pagesを公開するには対応プランが必要です。
 
 詳細とPrivate化の判断条件は[`GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md`](GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md)を確認してください。
+
+全プログラムとworkflowの入出力、照合、timeout、部分完了、復旧の正本は[`PROGRAM_AND_WORKFLOW_REFERENCE.md`](PROGRAM_AND_WORKFLOW_REFERENCE.md)です。
 
 ## 2. 所有権移転の順番
 
@@ -67,7 +69,7 @@ git remote -v
 | `.github/workflows/*.yml` | `repository: jmh8128494-cloud/googlemap` |
 | `issue-ops-universal.yml`の完了リンク | `https://github.com/jmh8128494-cloud/googlemap` |
 | PythonのGitHub ownerフォールバック | `jmh8128494-cloud` |
-| WebAppキャッシュ識別子 | `app.js?v=20260825-user-manual` |
+| WebAppキャッシュ識別子 | `app.js?v=20260827-long-run-safety` |
 
 移管前の固定値が現行ファイルに残っていないことを確認するコマンド:
 
@@ -247,7 +249,7 @@ SERP依存の3処理は将来の再開に備えてWebAppとActionsへ残して�
 
 Google Places APIはレビューのオーナー返信を返しません。返信が必要な場合はDataset逐次版を使用します。
 
-Bright Dataの同時処理数は最大20です。Dataset逐次版のWebAppは「Bright Data同時処理数」を20件、GitHub Actionsの並列ジョブ数を1に固定しています。Issue・workflow・Pythonでは`api_batch_size × max_parallel_jobs`が20を超える設定を拒否します。SERP APIの並列数（レビュー10、施設10、関連度3）は別設定で、既存の安全な既定値を維持します。
+Bright Dataの同時処理数は最大20です。Dataset逐次版は`rows_per_batch`を最大500、`api_batch_size`を20、GitHub Actionsの並列ジョブ数を1、matrixを最大256に制限します。WebApp・Issue・workflow・CLI・Pythonで同じ設定を検証し、積が20を超える設定も拒否します。SERP APIの並列数（レビュー10、施設10、関連度3）は別設定で、既存の安全な既定値を維持しつつ上限20を適用します。
 
 ## 9. 受入テスト
 

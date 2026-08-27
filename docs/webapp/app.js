@@ -852,8 +852,8 @@ function validateFormEnhanced() {
         if (!Number.isInteger(startFromBatch) || startFromBatch < 1) {
             errors.push('start_from_batch は1以上の整数を指定してください');
         }
-        if (!Number.isInteger(rowsPerBatch) || rowsPerBatch < 1) {
-            errors.push('rows_per_batch は1以上の整数を指定してください');
+        if (!Number.isInteger(rowsPerBatch) || rowsPerBatch < 1 || rowsPerBatch > 500) {
+            errors.push('rows_per_batch は1〜500の整数を指定してください');
         }
         if (sequentialMaxParallel !== 1) {
             errors.push('WebAppではGitHub Actionsの並列ジョブ数を1に固定しています');

@@ -4,7 +4,7 @@ title: 利用者向け操作マニュアル
 
 # 利用者向け操作マニュアル
 
-更新日: 2026-08-25
+更新日: 2026-08-27
 
 このマニュアルは、WebAppから施設・レビュー取得を実行する利用者向けの正本です。初期移管、GitHub Secrets、開発者向け内部仕様は別文書に分け、この文書では日常操作に必要な内容を説明します。
 
@@ -194,7 +194,7 @@ Google Places APIはレビューのオーナー返信を返しません。レビ
 
 既存出力を選んだ場合はレビューGIDで照合し、既存行を残して新規レビューだけを追加します。新規出力ではレビューIDを1から採番します。
 
-歯科医院の全件逐次処理は過去に約2日半かかりました。小規模テストから始め、同じ出力CSVを使う処理を同時に実行しないでください。
+歯科医院の全件逐次処理は過去に約60時間22分かかりました。ただし134バッチすべての成功ではなく、94成功・40失敗の成功分66,358件をマージし、34,227件を新規追加できた部分完了です。現在は`500行・API 20件・1並列・待機90分`を標準とするため、全件時間は小規模実測から見積もり直します。同じ出力CSVを使う処理を同時に実行しないでください。
 
 ## 8. ActionsとIssueの確認
 
@@ -209,6 +209,18 @@ Google Places APIはレビューのオーナー返信を返しません。レビ
 5. `report-completion`: Issueへ完了結果を書けたか
 
 同じIssueを重複承認しないでください。失敗した場合は新しいIssueを作る前に、失敗ステップとエラーメッセージを確認します。
+
+### success・partial・failedの見方
+
+| 表示 | 意味 | 次の操作 |
+|---|---|---|
+| `success` | 対象範囲が完了。Datasetの正常なレビュー0件も含む | 出力CSVを確認する |
+| `partial` | 成功分は保存済みだが、未処理または失敗範囲がある | 下記の方法で未完了範囲だけを再実行する |
+| `failed` | 成功成果がない、または入力・認証・API開始で失敗 | エラー原因を直してから再実行する |
+
+Google Places／SERP施設が`partial`の場合は、住所CSV、検索キーワード、出力先を変えずに同じ処理を実行します。`results/progress/`の進捗を使い、未処理住所から自動再開します。住所CSVの内容、キーワード、出力先を変えると新しい処理として最初から実行されます。
+
+Dataset逐次レビューが`partial`の場合は、Issueコメントまたは`results/status/status_batch_<番号>.json`で失敗バッチ番号、開始行、終了行、完了APIチャンク数を確認します。`start_from_batch`へ失敗バッチ番号を指定し、連続範囲だけなら`max_batches`で範囲を限定します。離れた複数範囲は別々に実行します。自動再試行は行われません。
 
 ## 9. 出力CSVの確認
 
@@ -289,4 +301,5 @@ n8nは次の2機能だけに使用します。
 | [`SERP_API_REACTIVATION_GUIDE.md`](SERP_API_REACTIVATION_GUIDE.md) | SERP API再開時の段階テスト |
 | [`n8n_google_reviews_ops.md`](n8n_google_reviews_ops.md) | Codex併用のGoogleプロファイル・関連度取得 |
 | [`GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md`](GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md) | Public／Private、Actions分数、長時間処理 |
+| [`PROGRAM_AND_WORKFLOW_REFERENCE.md`](PROGRAM_AND_WORKFLOW_REFERENCE.md) | 全プログラム・workflowの詳細仕様、状態JSON、再開方法 |
 | [`issueオーケストレーション.md`](issueオーケストレーション.md) | IssueからActionsへ分岐する内部仕様 |

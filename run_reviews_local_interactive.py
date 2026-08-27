@@ -90,7 +90,7 @@ def main():
         '--batch-size',
         type=int,
         default=20,
-        help='API 1回あたりの処理件数 (1〜20、デフォルト: 20)'
+        help='API 1回あたりの処理件数 (20固定)'
     )
     
     parser.add_argument(
@@ -316,8 +316,11 @@ def main():
         
         args.api_token = api_token
 
-    if not 1 <= args.batch_size <= 20:
-        print("❌ エラー: Bright Dataの同時処理数を守るため、--batch-size は1〜20で指定してください")
+    if args.batch_size != 20:
+        print("❌ エラー: Bright Dataの同時処理数を守るため、--batch-size は20固定です")
+        sys.exit(1)
+    if not 1 <= args.rows_per_batch <= 500:
+        print("❌ エラー: --rows-per-batch は1〜500で指定してください")
         sys.exit(1)
     
     # スクリプトのパス

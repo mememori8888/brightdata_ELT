@@ -168,6 +168,11 @@ def main():
         print(f"Incremental rows: {len(new_rows)} -> {increment_file}")
 
     print(f"Merged rows: {len(rows)}")
+    merge_output_file = os.environ.get("MERGE_OUTPUT_FILE", "").strip()
+    if merge_output_file:
+        with open(merge_output_file, "a", encoding="utf-8") as output:
+            output.write(f"merged_rows={len(rows)}\n")
+            output.write(f"incremental_rows={len(new_rows)}\n")
 
 
 if __name__ == "__main__":

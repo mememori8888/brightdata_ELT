@@ -95,6 +95,10 @@ on:
         required: false
         type: boolean
         default: false
+    outputs:
+      completion_state:
+        description: 'success, partial, or failed'
+        value: ${{ jobs.enrich.outputs.completion_state }}
     secrets:
       PRIVATE_REPO_PAT:
         required: true
@@ -110,7 +114,9 @@ permissions:
 jobs:
   enrich:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 300
+    outputs:
+      completion_state: ${{ steps.state-status.outputs.completion_state }}
     env:
       STATE_FILE: /tmp/google-maps-storage-state.json
     steps:
@@ -152,6 +158,9 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Enrich relevance ranks
+        id: enrich-step
+        continue-on-error: true
+        timeout-minutes: 270
         env:
           REVIEW_FILE: private-data/${{ inputs.review_file }}
           FACILITY_FILE: private-data/${{ inputs.facility_file }}
@@ -191,6 +200,8 @@ jobs:
           python scripts/enrich_review_relevance_ranks_state.py "${args[@]}"
 
       - name: Validate output CSV
+        id: validate-output
+        continue-on-error: true
         env:
           REVIEW_FILE: private-data/${{ inputs.review_file }}
         run: |
@@ -229,7 +240,46 @@ jobs:
               raise SystemExit("review GID duplicates detected")
           PY
 
+      - name: Write Playwright relevance status
+        id: state-status
+        if: always()
+        env:
+          ENRICH_OUTCOME: ${{ steps.enrich-step.outcome }}
+          VALIDATE_OUTCOME: ${{ steps.validate-output.outcome }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          enrich = os.environ.get('ENRICH_OUTCOME') or 'failure'
+          validate = os.environ.get('VALIDATE_OUTCOME') or 'failure'
+          changed = subprocess.run(
+              ['git', '-C', 'private-data', 'diff', '--quiet', '--', '${{ inputs.review_file }}'],
+              stdout=subprocess.DEVNULL,
+              stderr=subprocess.DEVNULL,
+          ).returncode == 1
+          if enrich == 'success' and validate == 'success':
+              state = 'success'
+          elif changed:
+              state = 'partial'
+          else:
+              state = 'failed'
+          payload = {
+              'status': state,
+              'start': '${{ inputs.start }}',
+              'limit': '${{ inputs.limit }}',
+              'enrich_outcome': enrich,
+              'validate_outcome': validate,
+              'error_type': '' if state == 'success' else 'playwright_or_validation_failure',
+          }
+          path = Path('private-data/results/status/relevance_state_${{ github.run_id }}.json')
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'completion_state={state}\n')
+          PY
+
       - name: Save results to private data repository
+        if: always()
         run: |
           set -eu
           cd private-data
@@ -245,6 +295,7 @@ jobs:
               git add "$file"
             fi
           done
+          git add "results/status/relevance_state_${{ github.run_id }}.json"
           git diff --staged --quiet || (git commit -m "Update relevance ranks with Playwright state - $(date +'%Y-%m-%d %H:%M:%S')" && git pull --rebase origin main && git push)
 
       - name: Upload debug artifacts
@@ -257,6 +308,7 @@ jobs:
             private-data/${{ inputs.rank_detail_file }}
             private-data/${{ inputs.unmatched_review_file }}
             private-data/results/debug/relevance_state_${{ github.run_id }}/**
+            private-data/results/status/relevance_state_${{ github.run_id }}.json
           if-no-files-found: warn
           retention-days: 7
 
@@ -269,3 +321,10 @@ jobs:
           echo "- Start: \`${{ inputs.start }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Limit: \`${{ inputs.limit }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Rank limit: \`${{ inputs.rank_limit }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- State: \`${{ steps.state-status.outputs.completion_state }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mark unsuccessful Playwright relevance run
+        if: steps.state-status.outputs.completion_state != 'success'
+        run: |
+          echo "Playwright relevance run ended with ${{ steps.state-status.outputs.completion_state }}; artifacts were preserved."
+          exit 1

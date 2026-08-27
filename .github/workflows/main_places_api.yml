@@ -70,10 +70,17 @@ on:
       update_review_file:
         required: false
         type: string
+    outputs:
+      completion_state:
+        description: 'success, partial, or failed'
+        value: ${{ jobs.run-places-api-scraper.outputs.completion_state }}
 
 jobs:
   run-places-api-scraper:
     runs-on: ubuntu-latest
+    timeout-minutes: 300
+    outputs:
+      completion_state: ${{ steps.places-status.outputs.completion_state }}
 
     steps:
       - name: Checkout repository
@@ -151,7 +158,7 @@ jobs:
           UPDATE_FACILITY_FILE: ${{ inputs.update_facility_file }}
           UPDATE_REVIEW_FILE: ${{ inputs.update_review_file }}
           EXCLUDE_GIDS_FILE: ${{ inputs.exclude_gids_file }}
-        timeout-minutes: 300
+        timeout-minutes: 270
         run: |
           echo "=== Starting Google Places API facility scraper ==="
           echo "📁 Config file: $CONFIG_FILE"
@@ -203,3 +210,46 @@ jobs:
             git push
             echo "✅ プライベートリポジトリに保存しました"
           fi
+
+      - name: Finalize Places run status
+        id: places-status
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path('results/places_run_status.json')
+          state = 'failed'
+          details = {}
+          if path.exists():
+              try:
+                  details = json.loads(path.read_text(encoding='utf-8'))
+                  state = details.get('status') or 'failed'
+              except (OSError, json.JSONDecodeError):
+                  state = 'failed'
+
+          if state not in {'success', 'partial', 'failed'}:
+              state = 'failed'
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'completion_state={state}\n')
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write('## Google Places 施設・レビュー取得\n')
+              summary.write(f'- 状態: {state}\n')
+              summary.write(
+                  f"- 完了住所: {details.get('completed_address_rows', 0)}"
+                  f"/{details.get('total_address_rows', 0)}\n"
+              )
+              if details.get('error_type'):
+                  summary.write(f"- エラー種別: {details['error_type']}\n")
+              if state == 'partial':
+                  summary.write('- 同じ条件で再実行すると未処理住所から再開します。\n')
+
+          PY
+      - name: Mark unsuccessful Places run
+        if: steps.places-status.outputs.completion_state != 'success'
+        run: |
+          echo "Places run ended with ${{ steps.places-status.outputs.completion_state }}; results and progress were preserved."
+          exit 1

@@ -11,6 +11,7 @@ import time
 import re
 import requests
 
+from places_csv_store import atomic_write_json
 from review_schema import REVIEW_FIELDNAMES
 import logging
 from pathlib import Path
@@ -59,11 +60,42 @@ DATASET_ID = os.getenv('BRIGHTDATA_DATASET_ID', 'gd_luzfs1dn2oa0teb81')  # Googl
 DAYS_BACK = int(os.getenv('DAYS_BACK', '10'))  # デフォルト10日分
 BRIGHTDATA_CONCURRENCY_LIMIT = 20
 BATCH_SIZE = int(os.getenv('BATCH_SIZE', str(BRIGHTDATA_CONCURRENCY_LIMIT)))  # API 1回あたりの処理件数
-if not 1 <= BATCH_SIZE <= BRIGHTDATA_CONCURRENCY_LIMIT:
-    raise ValueError(f'BATCH_SIZE must be between 1 and {BRIGHTDATA_CONCURRENCY_LIMIT}: {BATCH_SIZE}')
-MAX_WAIT_MINUTES = int(os.getenv('MAX_WAIT_MINUTES', '60'))  # スナップショット待機時間
+if BATCH_SIZE != BRIGHTDATA_CONCURRENCY_LIMIT:
+    raise ValueError(f'BATCH_SIZE must be exactly {BRIGHTDATA_CONCURRENCY_LIMIT}: {BATCH_SIZE}')
+MAX_WAIT_MINUTES = int(os.getenv('MAX_WAIT_MINUTES', '90'))  # スナップショット待機時間
 APPLIED_REVIEW_SORT = 'qualityScore'  # Dataset API default; sort input is rejected by this dataset.
 ALLOW_PARTIAL_FAILURE = os.getenv('ALLOW_PARTIAL_FAILURE', 'false').lower() in ('1', 'true', 'yes')
+RUN_STATUS_FILE = os.getenv('RUN_STATUS_FILE', '').strip()
+
+
+def write_run_status(status: str, stats: Dict, total_chunks: int, current_chunk: int, error_type: str = '') -> None:
+    """Persist non-sensitive progress so Actions can report partial results accurately."""
+    if not RUN_STATUS_FILE:
+        return
+    atomic_write_json(RUN_STATUS_FILE, {
+        'status': status,
+        'batch_number': os.getenv('MATRIX_BATCH_NUMBER', ''),
+        'start_row': START_ROW,
+        'end_row': END_ROW or '',
+        'completed_api_chunks': stats.get('successful_batches', 0),
+        'failed_api_chunks': stats.get('failed_batches', 0),
+        'total_api_chunks': total_chunks,
+        'current_api_chunk': current_chunk,
+        'new_reviews': stats.get('new_reviews', 0),
+        'error_type': error_type,
+    })
+
+
+class SnapshotTriggerError(RuntimeError):
+    """Dataset trigger failed before a snapshot could be created."""
+
+
+class SnapshotProcessingError(RuntimeError):
+    """Dataset snapshot ended in failed state or exceeded its wait limit."""
+
+
+class SnapshotDownloadError(RuntimeError):
+    """A ready snapshot could not be downloaded successfully."""
 
 
 def format_review_sort_label(sort_value: str) -> str:
@@ -342,7 +374,7 @@ class BrightDataWebScraperReviews:
                 logging.error(f"❌ Failed to trigger snapshot: {type(e).__name__}: {e}")
                 raise
     
-    def wait_for_snapshot(self, snapshot_id: str, max_wait_minutes: int = 60) -> bool:
+    def wait_for_snapshot(self, snapshot_id: str, max_wait_minutes: int = 90) -> bool:
         """
         スナップショット完了まで待機（/progress エンドポイント使用）
         詳細なログ出力付き
@@ -557,7 +589,12 @@ class BrightDataWebScraperReviews:
             logging.info(f"  最初のURL（サンプル）: {urls_with_params[0].get('url', 'N/A')[:60] if urls_with_params else 'N/A'}")
             
             trigger_start = time.time()
-            snapshot_id = self.trigger_snapshot(urls_with_params)
+            try:
+                snapshot_id = self.trigger_snapshot(urls_with_params)
+            except Exception as exc:
+                status_code = getattr(getattr(exc, 'response', None), 'status_code', None)
+                suffix = f' (HTTP {status_code})' if status_code else ''
+                raise SnapshotTriggerError(f'Dataset trigger failed{suffix}') from exc
             trigger_elapsed = time.time() - trigger_start
             
             logging.info(f"✅ APIトリガー完了 ({trigger_elapsed:.1f}秒)")
@@ -572,7 +609,7 @@ class BrightDataWebScraperReviews:
                 logging.error(f"❌ バッチ {batch_id}: スナップショット処理失敗")
                 elapsed = time.time() - start_time
                 logging.error(f"  総処理時間: {int(elapsed)}秒")
-                raise RuntimeError(f"Snapshot processing failed: {snapshot_id}")
+                raise SnapshotProcessingError(f"Snapshot processing failed: {snapshot_id}")
             wait_elapsed = time.time() - wait_start
             
             logging.info(f"✅ スナップショット処理完了 ({wait_elapsed:.1f}秒)")
@@ -582,7 +619,10 @@ class BrightDataWebScraperReviews:
             logging.info("[Step 3/3] データダウンロード中...")
             
             download_start = time.time()
-            reviews = self.get_snapshot_data(snapshot_id, retries=5)
+            try:
+                reviews = self.get_snapshot_data(snapshot_id, retries=5)
+            except Exception as exc:
+                raise SnapshotDownloadError(f"Snapshot download failed: {snapshot_id}") from exc
             download_elapsed = time.time() - download_start
             
             logging.info(f"✅ データダウンロード完了 ({download_elapsed:.1f}秒)")
@@ -1003,8 +1043,10 @@ def main():
         'new_reviews_list': [],
         'recent_reviews_list': [],
         'failed_batches': 0,
-        'successful_batches': 0
+        'successful_batches': 0,
+        'last_error_type': '',
     }
+    write_run_status('running', stats, len(batches), 0)
     
     # 全体処理の開始時刻
     main_start_time = time.time()
@@ -1044,6 +1086,7 @@ def main():
                 # 「期間内レビュー0件」でありAPI失敗ではない。
                 stats['successful_batches'] += 1
                 logging.info(f'✅ APIチャンク {batch_idx}: 期間内レビュー0件（正常終了）')
+                write_run_status('running', stats, len(batches), batch_idx)
                 continue
             
             logging.info(f'✅ APIチャンク {batch_idx}: {len(reviews)}件のレビュー取得完了')
@@ -1133,10 +1176,13 @@ def main():
                 all_reviews = existing_reviews + stats['new_reviews_list']
                 save_reviews_to_csv(OUTPUT_CSV, all_reviews)
                 logging.info(f'💾 途中保存完了: {len(all_reviews)}件 → {OUTPUT_CSV}')
+            write_run_status('running', stats, len(batches), batch_idx)
             
         except Exception as e:
             batch_elapsed = time.time() - batch_start_time
             stats['failed_batches'] += 1
+            stats['last_error_type'] = type(e).__name__
+            write_run_status('partial', stats, len(batches), batch_idx, stats['last_error_type'])
             logging.error(f'❌ APIチャンク {batch_idx} 処理エラー')
             logging.error(f'   エラー: {type(e).__name__}: {str(e)[:100]}')
             logging.error(f'   処理時間: {batch_elapsed:.1f}秒')
@@ -1191,6 +1237,15 @@ def main():
         save_recent_reviews_to_csv(RECENT_REVIEWS_CSV, stats['recent_reviews_list'])
         logging.info(f'\n📄 期間内レビュー一覧: {RECENT_REVIEWS_CSV}')
         logging.info(f'   Dataset取得レビュー: {len(stats["recent_reviews_list"])}件')
+
+    final_status = 'success' if stats['failed_batches'] == 0 else 'partial'
+    write_run_status(
+        final_status,
+        stats,
+        len(batches),
+        len(batches),
+        stats['last_error_type'] if stats['failed_batches'] else '',
+    )
 
     if stats['failed_batches'] > 0 and not ALLOW_PARTIAL_FAILURE:
         raise RuntimeError(f'APIチャンクが {stats["failed_batches"]} 件失敗しました')

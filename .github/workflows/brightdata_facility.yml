@@ -51,10 +51,17 @@ on:
           - '10'
         default: '1'
   workflow_call:      # 再利用可能にする
+    outputs:
+      completion_state:
+        description: 'success, partial, or failed'
+        value: ${{ jobs.run-facility-scraper.outputs.completion_state }}
 
 jobs:
   run-facility-scraper:
     runs-on: ubuntu-latest
+    timeout-minutes: 300
+    outputs:
+      completion_state: ${{ steps.facility-status.outputs.completion_state }}
     
     steps:
       - name: Checkout repository
@@ -116,6 +123,8 @@ jobs:
           fi
           
       - name: Run facility scraper
+        id: facility-scrape
+        continue-on-error: true
         env:
           BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
           # settings/ と results/ は private-data から workspace 直下へコピー済み。
@@ -126,7 +135,7 @@ jobs:
           CUSTOM_ADDRESS_CSV: ${{ github.event.inputs.address_csv }}
           CUSTOM_OUTPUT_FILE: ${{ github.event.inputs.output_file }}
           MAX_REQUESTS: ${{ github.event.inputs.max_requests || '5' }}
-        timeout-minutes: 300
+        timeout-minutes: 270
         run: |
           echo "=== Starting facility scraper ==="
           echo "📁 Config file: $CONFIG_FILE"
@@ -303,6 +312,8 @@ jobs:
       - name: Post results to Issue
         if: always() && github.event.issue.number
         uses: actions/github-script@v7
+        env:
+          SCRAPE_OUTCOME: ${{ steps.facility-scrape.outcome }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -312,6 +323,13 @@ jobs:
             const issueNumber = context.issue.number;
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const artifactUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}#artifacts`;
+            let runState = 'failed';
+            try {
+              runState = JSON.parse(fs.readFileSync('results/serp_facility_run_status.json', 'utf8')).status || 'failed';
+            } catch (error) {
+              console.log('状態JSON読み込みエラー:', error.message);
+            }
+            if (process.env.SCRAPE_OUTCOME !== 'success') runState = 'failed';
             
             // settings.jsonから設定を読み込み
             let config = {};
@@ -361,7 +379,15 @@ jobs:
             
             const fileList = files.length > 0 ? files.join('\n') : '- 出力ファイル情報を取得できませんでした';
             
-            const comment = `## 🎉 施設情報取得が完了しました\n\n` +
+            const heading = runState === 'success'
+              ? '## 🎉 施設情報取得が完了しました'
+              : runState === 'partial'
+                ? '## ⚠️ 施設情報取得は部分完了です'
+                : '## ❌ 施設情報取得に失敗しました';
+            const resume = runState === 'partial'
+              ? '同じ条件で再実行すると、未処理住所から再開します。\n\n'
+              : '';
+            const comment = `${heading}\n\n${resume}` +
               `### 📊 出力ファイル\n` +
               `${fileList}\n\n` +
               `### 📦 ダウンロード\n` +
@@ -374,3 +400,32 @@ jobs:
               issue_number: issueNumber,
               body: comment
             });
+
+      - name: Finalize SERP facility status
+        id: facility-status
+        if: always()
+        env:
+          SCRAPE_OUTCOME: ${{ steps.facility-scrape.outcome }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path('results/serp_facility_run_status.json')
+          state = 'failed'
+          if path.exists():
+              try:
+                  state = json.loads(path.read_text(encoding='utf-8')).get('status') or 'failed'
+              except (OSError, json.JSONDecodeError):
+                  state = 'failed'
+          if os.environ.get('SCRAPE_OUTCOME') != 'success' or state not in {'success', 'partial'}:
+              state = 'failed'
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'completion_state={state}\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+              summary.write(f'## SERP施設取得\n- 状態: {state}\n')
+          PY
+      - name: Mark unsuccessful SERP facility run
+        if: steps.facility-status.outputs.completion_state != 'success'
+        run: |
+          echo "SERP facility run ended with ${{ steps.facility-status.outputs.completion_state }}; artifacts were preserved."
+          exit 1

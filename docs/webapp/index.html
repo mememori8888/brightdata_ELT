@@ -141,8 +141,8 @@
 
                         <div class="form-group">
                             <label for="sequential_rows_per_batch">rows_per_batch *</label>
-                            <input type="number" id="sequential_rows_per_batch" value="500" min="1" required aria-required="true" aria-label="1バッチあたりの施設行数（必須）" aria-describedby="sequential_rows_per_batch_help">
-                            <small id="sequential_rows_per_batch_help">1バッチあたりの施設行数</small>
+                            <input type="number" id="sequential_rows_per_batch" value="500" min="1" max="500" required aria-required="true" aria-label="1バッチあたりの施設行数（必須）" aria-describedby="sequential_rows_per_batch_help">
+                            <small id="sequential_rows_per_batch_help">1バッチあたりの施設行数（最大500行）</small>
                         </div>
 
                         <div class="form-group">
@@ -408,6 +408,6 @@
     </div>
 
     <!-- フォーム変更時に古いJavaScriptがブラウザに残らないようバージョンを更新する -->
-    <script src="app.js?v=20260825-user-manual"></script>
+    <script src="app.js?v=20260827-long-run-safety"></script>
 </body>
 </html>

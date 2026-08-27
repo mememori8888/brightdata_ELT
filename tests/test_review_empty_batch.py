@@ -1,5 +1,10 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
+
+import requests
 
 import get_reviews_from_dental_new as reviews
 
@@ -57,6 +62,46 @@ class ReviewEmptyBatchTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(RuntimeError, "Snapshot processing failed"):
                 client.process_batch([{"url": TEST_ENTRY["url"]}])
+
+    def test_trigger_http_400_is_classified_as_a_real_failure(self):
+        client = reviews.BrightDataWebScraperReviews("test-token", "test-dataset")
+        response = requests.Response()
+        response.status_code = 400
+        error = requests.exceptions.HTTPError("bad request", response=response)
+
+        with patch.object(client, "trigger_snapshot", side_effect=error):
+            with self.assertRaises(reviews.SnapshotTriggerError):
+                client.process_batch([{"url": TEST_ENTRY["url"]}])
+
+    def test_snapshot_download_failure_has_a_separate_error_type(self):
+        client = reviews.BrightDataWebScraperReviews("test-token", "test-dataset")
+        with (
+            patch.object(client, "trigger_snapshot", return_value="snapshot-1"),
+            patch.object(client, "wait_for_snapshot", return_value=True),
+            patch.object(client, "get_snapshot_data", side_effect=RuntimeError("download failed")),
+        ):
+            with self.assertRaises(reviews.SnapshotDownloadError):
+                client.process_batch([{"url": TEST_ENTRY["url"]}])
+
+    def test_status_json_keeps_the_specific_api_error_type(self):
+        client = Mock()
+        client.process_batch.side_effect = reviews.SnapshotTriggerError("HTTP 400")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            status_file = Path(temp_dir) / "status.json"
+            with (
+                patch.object(reviews, "load_dental_csv", return_value=[TEST_ENTRY]),
+                patch.object(reviews, "load_existing_reviews", return_value=([], set(), 100)),
+                patch.object(reviews, "BrightDataWebScraperReviews", return_value=client),
+                patch.object(reviews, "ALLOW_PARTIAL_FAILURE", False),
+                patch.object(reviews, "BATCH_SIZE", 20),
+                patch.object(reviews, "RUN_STATUS_FILE", str(status_file)),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "APIチャンクが 1 件失敗"):
+                    reviews.main()
+
+            status = json.loads(status_file.read_text(encoding="utf-8"))
+            self.assertEqual(status["status"], "partial")
+            self.assertEqual(status["error_type"], "SnapshotTriggerError")
 
     def run_main_with_batch_error(self, error):
         self.run_main_with_batch_result(batch_error=error)

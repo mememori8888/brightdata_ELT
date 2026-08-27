@@ -57,6 +57,26 @@ class OutputMergeBehaviorTests(unittest.TestCase):
         self.assertEqual(rows[0]["レビュー本文"], "更新")
         self.assertEqual([row["レビューGID"] for row in new_rows], ["gid-2"])
 
+    def test_merge_keeps_successful_and_partial_artifacts_when_another_batch_is_missing(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            output = root / "reviews.csv"
+            self.write_reviews(
+                root / "reviews_batch_1.csv",
+                [{"施設ID": "101", "レビューGID": "success-gid"}],
+            )
+            # batch 2 failed before producing a CSV; batch 3 produced a partial checkpoint.
+            self.write_reviews(
+                root / "reviews_batch_3.csv",
+                [{"施設ID": "103", "レビューGID": "partial-gid"}],
+            )
+
+            rows, new_rows = merge_batches(output, str(root / "reviews_batch_*.csv"))
+
+        self.assertEqual([row["レビューGID"] for row in rows], ["success-gid", "partial-gid"])
+        self.assertEqual([row["レビューID"] for row in rows], ["1", "2"])
+        self.assertEqual(len(new_rows), 2)
+
     def test_dataset_and_serp_new_files_start_before_review_id_one(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

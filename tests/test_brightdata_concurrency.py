@@ -15,7 +15,13 @@ class BrightDataConcurrencyTests(unittest.TestCase):
             with self.subTest(workflow=relative_path):
                 self.assertGreaterEqual(source.count("default: '20'"), 2)
                 self.assertGreaterEqual(source.count("default: '1'"), 2)
+                self.assertGreaterEqual(source.count("default: '500'"), 2)
+                self.assertGreaterEqual(source.count("default: '90'"), 2)
+                self.assertIn("rows_per_batch <= 500", source)
+                self.assertIn("max_parallel_jobs != 1", source)
+                self.assertIn("api_batch_size != 20", source)
                 self.assertIn("api_batch_size * max_parallel_jobs > 20", source)
+                self.assertIn("MAX_MATRIX_JOBS = 256", source)
 
     def test_webapp_defaults_and_validates_the_global_limit(self):
         html = (REPOSITORY_ROOT / "docs/webapp/index.html").read_text(encoding="utf-8")
@@ -31,6 +37,7 @@ class BrightDataConcurrencyTests(unittest.TestCase):
         self.assertIn("sequentialMaxParallel !== 1", app)
         self.assertIn("apiBatchSize !== 20", app)
         self.assertIn("apiBatchSize * sequentialMaxParallel > 20", app)
+        self.assertIn("rowsPerBatch > 500", app)
         self.assertNotIn("**最大並列バッチ数**", app)
         self.assertIn("**Bright Data同時処理数**", app)
 
@@ -43,9 +50,12 @@ class BrightDataConcurrencyTests(unittest.TestCase):
 
         self.assertIn("api_batch_value * max_parallel_value > 20", orchestrator)
         self.assertIn("BRIGHTDATA_CONCURRENCY_LIMIT = 20", dataset)
-        self.assertIn("--batch-size は1〜20", wrapper)
+        self.assertIn("--batch-size は20固定", wrapper)
+        self.assertIn("--rows-per-batch は1〜500", wrapper)
         self.assertIn("BRIGHTDATA_CONCURRENCY_LIMIT = 20", serp_reviews)
         self.assertIn("MAX_WORKERS <= 20", serp_facility)
+        self.assertIn("max_parallel_value != 1", orchestrator)
+        self.assertIn("rows_per_batch_val > 500", orchestrator)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ env:
 jobs:
   parse-and-route:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: |
       (github.event_name == 'issues' && (
         contains(github.event.issue.body, '/run-reviews-relevance') ||
@@ -277,6 +278,7 @@ jobs:
     needs: parse-and-route
     if: needs.parse-and-route.outputs.should_run == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     outputs:
       should_execute: ${{ steps.validate.outputs.should_execute }}
       reason: ${{ steps.validate.outputs.reason }}
@@ -420,17 +422,15 @@ jobs:
               max_parallel_value = None
               try:
                   max_parallel_value = int(str(max_parallel_jobs))
-                  if max_parallel_value < 1:
-                      errors.append("max_parallel_jobs は1以上の整数を指定してください。")
-                  if max_parallel_value > 3:
-                      errors.append("max_parallel_jobs は3以下を指定してください。")
+                  if max_parallel_value != 1:
+                      errors.append("max_parallel_jobs は1固定です。")
               except ValueError:
                   errors.append("max_parallel_jobs は整数を指定してください。")
 
               try:
                   api_batch_value = int(str(params.get("api_batch_size", "20")))
-                  if api_batch_value > 20:
-                      errors.append("api_batch_size は20以下を指定してください。")
+                  if api_batch_value != 20:
+                      errors.append("api_batch_size は20固定です。")
                   if max_parallel_value is not None and api_batch_value * max_parallel_value > 20:
                       errors.append("Bright Dataの同時処理数を20以下にするため、api_batch_size × max_parallel_jobs は20以下にしてください。")
               except ValueError:
@@ -458,6 +458,8 @@ jobs:
                   and csv_file
                   and os.path.exists(data_path(csv_file))
               ):
+                  if rows_per_batch_val > 500:
+                      errors.append("rows_per_batch は500以下を指定してください。")
                   with open(data_path(csv_file), "r", encoding="utf-8-sig", errors="ignore") as f:
                       total_rows = max(sum(1 for _ in f) - 1, 0)
                   total_batches = -(-total_rows // rows_per_batch_val) if total_rows else 0  # ceil
@@ -608,6 +610,9 @@ jobs:
     needs: [parse-and-route, validate-request]
     if: needs.parse-and-route.outputs.should_run == 'true' && needs.validate-request.outputs.should_execute == 'true' && needs.parse-and-route.outputs.workflow_type == 'facility'
     runs-on: ubuntu-latest
+    timeout-minutes: 300
+    outputs:
+      completion_state: ${{ steps.facility-status.outputs.completion_state }}
     
     steps:
       - name: Checkout
@@ -652,6 +657,9 @@ jobs:
           python .github/scripts/update_config.py
       
       - name: Run facility scraper
+        id: facility-scrape
+        continue-on-error: true
+        timeout-minutes: 270
         env:
           BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
           # settings/ と results/ は private-data から workspace 直下へコピー済み。
@@ -665,6 +673,7 @@ jobs:
           python faiility_brightdata_new_version.py
       
       - name: Save results to private repository
+        if: always()
         run: |
           echo "💾 結果をプライベートリポジトリに保存中..."
           cp -r results/. private-data/results/ 2>/dev/null || true
@@ -683,9 +692,46 @@ jobs:
             echo "✅ プライベートリポジトリに保存しました"
           fi
 
+      - name: Upload facility results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facility-results-${{ github.run_number }}
+          path: results/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Finalize SERP facility status
+        id: facility-status
+        if: always()
+        env:
+          SCRAPE_OUTCOME: ${{ steps.facility-scrape.outcome }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path('results/serp_facility_run_status.json')
+          state = 'failed'
+          if path.exists():
+              try:
+                  state = json.loads(path.read_text(encoding='utf-8')).get('status') or 'failed'
+              except (OSError, json.JSONDecodeError):
+                  state = 'failed'
+          if os.environ.get('SCRAPE_OUTCOME') != 'success' or state not in {'success', 'partial'}:
+              state = 'failed'
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'completion_state={state}\n')
+          PY
+      - name: Mark unsuccessful SERP facility run
+        if: steps.facility-status.outputs.completion_state != 'success'
+        run: |
+          echo "SERP facility run ended with ${{ steps.facility-status.outputs.completion_state }}; artifacts were preserved."
+          exit 1
+
   report-completion:
     needs: [parse-and-route, validate-request, run-reviews, run-reviews-sequential, run-reviews-relevance, run-facility, run-facility-places]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: always() && needs.parse-and-route.outputs.should_run == 'true' && needs.validate-request.outputs.should_execute == 'true'
     
     steps:
@@ -694,6 +740,16 @@ jobs:
       
       - name: Report result
         uses: actions/github-script@v7
+        env:
+          SEQUENTIAL_COMPLETION_STATE: ${{ needs.run-reviews-sequential.outputs.completion_state }}
+          SEQUENTIAL_FAILED_BATCHES: ${{ needs.run-reviews-sequential.outputs.failed_batches }}
+          SEQUENTIAL_MERGED_ROWS: ${{ needs.run-reviews-sequential.outputs.merged_rows }}
+          SEQUENTIAL_INCREMENTAL_ROWS: ${{ needs.run-reviews-sequential.outputs.incremental_rows }}
+          PLACES_COMPLETION_STATE: ${{ needs.run-facility-places.outputs.completion_state }}
+          SERP_FACILITY_COMPLETION_STATE: ${{ needs.run-facility.outputs.completion_state }}
+          RELEVANCE_COMPLETION_STATE: ${{ needs.run-reviews-relevance.outputs.completion_state }}
+          RELEVANCE_FAILED_BATCHES: ${{ needs.run-reviews-relevance.outputs.failed_batches }}
+          SERP_REVIEWS_COMPLETION_STATE: ${{ needs.run-reviews.outputs.completion_state }}
         with:
           script: |
             const fs = require('fs');
@@ -726,7 +782,62 @@ jobs:
             }
             
             let body = '';
-            if (result === 'success') {
+            const sequentialState = process.env.SEQUENTIAL_COMPLETION_STATE || '';
+            let failedBatches = [];
+            try {
+              failedBatches = JSON.parse(process.env.SEQUENTIAL_FAILED_BATCHES || '[]');
+            } catch (error) {
+              console.log('失敗バッチ一覧の解析エラー:', error.message);
+            }
+
+            if (workflow === 'reviews_sequential' && sequentialState === 'partial') {
+              const ranges = failedBatches.length
+                ? failedBatches.map(item =>
+                    `- バッチ${item.batch_number}: 行${item.start_row}〜${item.end_row}` +
+                    `（完了APIチャンク ${item.completed_api_chunks}/${item.total_api_chunks}、${item.error_type || '原因不明'}）`
+                  ).join('\n')
+                : '- Actionsの失敗バッチを確認してください。';
+              body = `⚠️ **部分完了**\n\n` +
+                     `成功したバッチはマージしてPrivateデータリポジトリへ保存しました。\n\n` +
+                     `- マージ後レビュー数: ${process.env.SEQUENTIAL_MERGED_ROWS || '不明'}\n` +
+                     `- 新規追加レビュー数: ${process.env.SEQUENTIAL_INCREMENTAL_ROWS || '不明'}\n\n` +
+                     `### 再実行が必要な範囲\n${ranges}\n\n` +
+                     `自動再試行は行いません。上記バッチを指定して再実行してください。\n\n` +
+                     `- [Artifactsを確認](${artifactUrl})\n` +
+                     `- [Actionsログを見る](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
+            } else if (workflow === 'facility_places' && process.env.PLACES_COMPLETION_STATE === 'partial') {
+              body = `⚠️ **部分完了**\n\n` +
+                     `完了済み住所のCSVと進捗JSONをPrivateデータリポジトリへ保存しました。\n` +
+                     `同じ住所CSV・検索キーワード・出力先で再実行すると、未処理住所から再開します。\n\n` +
+                     `- [Artifactsを確認](${artifactUrl})\n` +
+                     `- [Actionsログを見る](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
+            } else if (workflow === 'facility' && process.env.SERP_FACILITY_COMPLETION_STATE === 'partial') {
+              body = `⚠️ **部分完了**\n\n` +
+                     `完了済み住所の施設CSVと進捗JSONをPrivateデータリポジトリへ保存しました。\n` +
+                     `同じ住所CSV・検索キーワード・出力先で再実行すると、未処理住所から再開します。\n\n` +
+                     `- [Artifactsを確認](${artifactUrl})\n` +
+                     `- [Actionsログを見る](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
+            } else if (workflow === 'reviews_recent_relevance' && process.env.RELEVANCE_COMPLETION_STATE === 'partial') {
+              let relevanceFailed = [];
+              try {
+                relevanceFailed = JSON.parse(process.env.RELEVANCE_FAILED_BATCHES || '[]');
+              } catch (error) {
+                console.log('関連度workflowの失敗バッチ解析エラー:', error.message);
+              }
+              const ranges = relevanceFailed.length
+                ? relevanceFailed.map(item => `- バッチ${item.batch_number}: 行${item.start_row}〜${item.end_row}`).join('\n')
+                : '- DatasetまたはSERP関連度ステップのログを確認してください。';
+              body = `⚠️ **部分完了**\n\n` +
+                     `成功したDataset成果と状態JSONを保存しました。SERP関連度付加を含む未完了範囲を確認してください。\n\n` +
+                     `### 再実行が必要な範囲\n${ranges}\n\n` +
+                     `- [Artifactsを確認](${artifactUrl})\n` +
+                     `- [Actionsログを見る](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
+            } else if (workflow === 'reviews' && process.env.SERP_REVIEWS_COMPLETION_STATE === 'partial') {
+              body = `⚠️ **部分完了**\n\n` +
+                     `取得済みのSERPレビューCSVと状態JSONを保存しました。指定した開始行・件数を確認して未完了範囲を再実行してください。\n\n` +
+                     `- [Artifactsを確認](${artifactUrl})\n` +
+                     `- [Actionsログを見る](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
+            } else if (result === 'success') {
               // 出力ファイルのリストを作成（ワークフロータイプに応じて表示）
               const files = [];
               

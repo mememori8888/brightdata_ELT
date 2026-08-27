@@ -38,6 +38,7 @@ import urllib3
 from urllib3.exceptions import InsecureRequestWarning
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+from places_csv_store import atomic_write_json, places_run_signature
 
 # InsecureRequestWarning を無効にする
 urllib3.disable_warnings(InsecureRequestWarning)
@@ -392,6 +393,38 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
     # APIを呼ぶ前にテンプレートを検証し、住所検索文字列へ変換する
     adress_list = load_address_queries(file_path)
 
+    progress_dir = os.path.join(results_dir, 'progress')
+    output_paths = [facility_file, update_facility_path, fid_file_path or '', duplicate_analysis_path or '']
+    signature_conditions = json.dumps(
+        {
+            'query': base_query,
+            'included_type': included_type or '',
+            'zone_name': zone_name,
+            'max_requests': os.environ.get('MAX_REQUESTS', '1'),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    run_signature = places_run_signature(file_path, signature_conditions, output_paths)
+    progress_json_path = os.path.join(progress_dir, f'serp_facility_{run_signature}.json')
+    run_status_path = os.path.join(results_dir, 'serp_facility_run_status.json')
+    saved_progress = {}
+    if os.path.exists(progress_json_path):
+        try:
+            with open(progress_json_path, encoding='utf-8') as progress_handle:
+                saved_progress = json.load(progress_handle)
+        except (OSError, json.JSONDecodeError):
+            logging.warning('SERP施設取得の進捗JSONを読み込めないため、最初から実行します。')
+    can_resume = (
+        saved_progress.get('signature') == run_signature
+        and saved_progress.get('status') in {'running', 'partial', 'failed'}
+    )
+    completed_address_indexes = {
+        int(value)
+        for value in (saved_progress.get('completed_address_indexes') or [])
+        if str(value).isdigit() and 0 <= int(value) < len(adress_list)
+    } if can_resume else set()
+
     # 既存施設ファイルの読み込みとヘッダー書き込み
     existing_gids = set()
     gid_to_id_map = {}
@@ -473,16 +506,19 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
     request_log = []
     fid_rows = []  # FID情報を格納
     duplicate_analysis_rows = []  # 重複分析用：全取得データ（重複含む）
-    total_requests_agg = 0
-    successful_requests_agg = 0
+    total_requests_agg = int(saved_progress.get('request_count', 0) or 0) if can_resume else 0
+    successful_requests_agg = int(saved_progress.get('successful_request_count', 0) or 0) if can_resume else 0
     total = len(adress_list)
-    completed = 0
+    completed = len(completed_address_indexes)
     start_time = time.time()
+    soft_limit_minutes = max(float(os.environ.get('FACILITY_SOFT_LIMIT_MINUTES', '240')), 1.0)
+    stopped_for_soft_limit = False
+    failed_address_indexes = set()
     last_id_holder = {'val': last_facility_id}
 
     # --- 途中保存用の初期化 ---
     # update_facility_path の初期化（上書きモードでヘッダー作成）
-    if update_facility_path:
+    if update_facility_path and not can_resume:
         try:
             with open(update_facility_path, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
@@ -492,7 +528,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
             logging.error(f"増分ファイル初期化失敗: {e}")
 
     # duplicate_analysis_path の初期化（上書きモードでヘッダー作成）
-    if duplicate_analysis_path:
+    if duplicate_analysis_path and not can_resume:
         try:
             with open(duplicate_analysis_path, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
@@ -590,6 +626,28 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
         unsaved_rows = []
         unsaved_fid_rows = []
         unsaved_duplicate_rows = []
+
+    def write_progress(status, error_type=''):
+        incomplete = [index for index in range(total) if index not in completed_address_indexes]
+        payload = {
+            'signature': run_signature,
+            'status': status,
+            'address_csv': str(file_path),
+            'search_query': base_query,
+            'included_type': included_type or '',
+            'output_files': [str(path) for path in output_paths if path],
+            'completed_address_indexes': sorted(completed_address_indexes),
+            'completed_address_rows': len(completed_address_indexes),
+            'next_address_index': incomplete[0] if incomplete else total,
+            'total_address_rows': total,
+            'request_count': total_requests_agg,
+            'successful_request_count': successful_requests_agg,
+            'failed_address_indexes': sorted(failed_address_indexes),
+            'error_type': error_type,
+            'updated_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+        atomic_write_json(progress_json_path, payload)
+        atomic_write_json(run_status_path, payload)
 
     def process_address(addr, zone_name_for_thread):
         """
@@ -767,8 +825,7 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
         
         return local_rows, local_fid_rows, query_request_count, query_success_count
 
-    # 並列実行
-    progress_path = os.path.join(results_dir, 'progress.txt')
+    # 並列実行。住所単位でCSVと進捗JSONを確定し、240分以内で安全に中断できる。
     cpu = os.cpu_count() or 2
     IO_MULTIPLIER = int(os.environ.get("IO_MULTIPLIER", "3"))
     MAX_WORKERS = int(os.environ.get("MAX_WORKERS", "10"))
@@ -776,132 +833,125 @@ def update_mini(base_query, api_token, zone_name, file_path, facility_file, upda
         raise ValueError(f"MAX_WORKERS must be between 1 and 20: {MAX_WORKERS}")
     calc = max(1, cpu * IO_MULTIPLIER)
     
-    if total == 0:
+    pending_address_items = [
+        (index, address)
+        for index, address in enumerate(adress_list)
+        if index not in completed_address_indexes
+    ]
+    if can_resume:
+        print(f"SERP施設取得を再開します（完了済み住所: {completed}/{total}）。")
+
+    if not pending_address_items:
         workers = 1
     else:
-        workers = min(MAX_WORKERS, calc, total)
-    
+        workers = min(MAX_WORKERS, calc, len(pending_address_items))
+
+    all_rows = []
+
+    def deadline_reached():
+        return (time.time() - start_time) / 60 >= soft_limit_minutes
+
+    def record_result(address_index, addr, result):
+        nonlocal completed, total_requests_agg, successful_requests_agg
+        local_rows, local_fid_rows, req_count, success_count = result
+        total_requests_agg += req_count
+        successful_requests_agg += success_count
+        if req_count > 0 and success_count == 0:
+            failed_address_indexes.add(address_index)
+            raise RuntimeError('この住所に対するBright Data APIリクエストがすべて失敗しました')
+        for row_tuple in local_rows:
+            if isinstance(row_tuple, tuple):
+                all_rows.append(row_tuple[0])
+                duplicate_analysis_rows.append(row_tuple[1])
+                unsaved_rows.append(row_tuple[0])
+                unsaved_duplicate_rows.append(row_tuple[1])
+            else:
+                all_rows.append(row_tuple)
+                unsaved_rows.append(row_tuple)
+        fid_rows.extend(local_fid_rows)
+        unsaved_fid_rows.extend(local_fid_rows)
+        completed_address_indexes.add(address_index)
+        failed_address_indexes.discard(address_index)
+        completed = len(completed_address_indexes)
+        request_log.append({'address': addr, 'requests': req_count, 'found': len(local_rows)})
+
+        # 進捗JSONより先にデータを保存する。再開時に「完了済みなのにCSVにない」を防ぐ。
+        save_batch()
+        write_progress('running')
+        elapsed = time.time() - start_time
+        eta = (elapsed / completed) * (total - completed) if completed else 0
+        print(
+            f"[{completed}/{total}] {addr} (+{len(local_rows)} found / {req_count} req) "
+            f"elapsed={elapsed:.1f}s eta={eta:.1f}s"
+        )
+
     if workers == 1:
         print(f"並列処理を無効化 (MAX_WORKERS={workers})")
-        all_rows = []
         if total == 0:
              print("処理対象の住所が0件のため、タスクをスキップします。")
-        
-        # adress_list を逆順で処理（テスト用）
-        # for addr in reversed(adress_list):
-        for addr in adress_list:
-            # end end があったら処理を終了
+
+        for address_index, addr in pending_address_items:
+            if deadline_reached():
+                stopped_for_soft_limit = True
+                break
             if 'end end' in addr:
                 print(f"'end end' を検出したため、処理を終了します。")
+                stopped_for_soft_limit = True
                 break
-            
             try:
-                local_rows, local_fid_rows, req_count, success_count = process_address(addr, zone_name)
-                
-                # process_address が返した local_rows を使って all_rows を更新
-                for row_tuple in local_rows:
-                    if isinstance(row_tuple, tuple):
-                        all_rows.append(row_tuple[0])
-                        duplicate_analysis_rows.append(row_tuple[1])
-                        # 途中保存用
-                        unsaved_rows.append(row_tuple[0])
-                        unsaved_duplicate_rows.append(row_tuple[1])
-                    else:
-                        all_rows.append(row_tuple)
-                        unsaved_rows.append(row_tuple)
-                fid_rows.extend(local_fid_rows)
-                unsaved_fid_rows.extend(local_fid_rows) # 途中保存用
-                
-                with progress_lock:
-                    completed += 1
-                    total_requests_agg += req_count
-                    successful_requests_agg += success_count
-                    # request_log には、CSVに追加される件数 (len(local_rows)) を記録
-                    request_log.append({'address': addr, 'requests': req_count, 'found': len(local_rows)})
-                
-                # 途中保存チェック
-                if completed % BATCH_SIZE == 0:
-                    save_batch()
-                
-                elapsed = time.time() - start_time
-                if completed > 0:
-                    eta = (elapsed / completed) * (total - completed)
-                    # コンソール出力も、CSVに追加される件数 (len(local_rows)) を表示
-                    print(f"[{completed}/{total}] {addr} (+{len(local_rows)} found / {req_count} req) elapsed={elapsed:.1f}s eta={eta:.1f}s")
-                else:
-                    print(f"[{completed}/{total}] {addr} (+{len(local_rows)} found / {req_count} req) elapsed={elapsed:.1f}s")
-
+                record_result(address_index, addr, process_address(addr, zone_name))
             except Exception as e:
                 logging.error(f"エラー (クエリ: {addr} {base_query}): {e}", exc_info=True)
                 print(f"[{completed}/{total}] {addr} ERROR ({e})")
-                completed += 1 # エラーでもカウントを進める
-            
-            with open(progress_path, "w", encoding="utf-8") as pf:
-                pf.write(f"total: {total}\n")
-                pf.write(f"completed: {completed}\n")
-    
-    else:
-        # このコードパスは MAX_WORKERS > 1 の場合にのみ実行される
-        print(f"並列処理を開始 (MAX_WORKERS={workers})")
-        all_rows = []
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = {executor.submit(process_address, addr, zone_name): addr for addr in adress_list}
-            
-            for future in as_completed(futures):
-                addr = futures[future]
-                try:
-                    local_rows, local_fid_rows, req_count, success_count = future.result()
-                    for row_tuple in local_rows:
-                        if isinstance(row_tuple, tuple):
-                            all_rows.append(row_tuple[0])
-                            duplicate_analysis_rows.append(row_tuple[1])
-                            # 途中保存用
-                            unsaved_rows.append(row_tuple[0])
-                            unsaved_duplicate_rows.append(row_tuple[1])
-                        else:
-                            all_rows.append(row_tuple)
-                            unsaved_rows.append(row_tuple)
-                    fid_rows.extend(local_fid_rows)
-                    unsaved_fid_rows.extend(local_fid_rows) # 途中保存用
-                    
-                    with progress_lock:
-                        completed += 1
-                        total_requests_agg += req_count
-                        successful_requests_agg += success_count
-                        request_log.append({'address': addr, 'requests': req_count, 'found': len(local_rows)})
-                    
-                    # 途中保存チェック
-                    if completed % BATCH_SIZE == 0:
-                        save_batch()
+                failed_address_indexes.add(address_index)
+                write_progress('partial', type(e).__name__)
 
-                except Exception as e:
-                    logging.error(f"エラー (クエリ: {addr} {base_query}): {e}", exc_info=True)
-                    print(f"[{completed}/{total}] {addr} ERROR ({e})")
-                    completed += 1 # エラーでもカウントを進める
-                    local_rows = [] # エラー時は空リストを設定
-                    req_count = 0   # エラー時はリクエスト数0を設定
-                    success_count = 0
-                
-                elapsed = time.time() - start_time
-                if completed > 0:
-                    eta = (elapsed / completed) * (total - completed)
-                    print(f"[{completed}/{total}] {addr} (+{len(local_rows)} found / {req_count} req) elapsed={elapsed:.1f}s eta={eta:.1f}s")
-                else:
-                     print(f"[{completed}/{total}] {addr} (+{len(local_rows)} found / {req_count} req) elapsed={elapsed:.1f}s")
-                
-                with open(progress_path, "w", encoding="utf-8") as pf:
-                    pf.write(f"total: {total}\n")
-                    pf.write(f"completed: {completed}\n")
-    
+    else:
+        print(f"並列処理を開始 (MAX_WORKERS={workers})")
+        # 一度に全住所をsubmitしない。最大workers件のグループ単位ならソフト上限で止められる。
+        for group_start in range(0, len(pending_address_items), workers):
+            if deadline_reached():
+                stopped_for_soft_limit = True
+                break
+            group = pending_address_items[group_start:group_start + workers]
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = {
+                    executor.submit(process_address, addr, zone_name): (address_index, addr)
+                    for address_index, addr in group
+                }
+                for future in as_completed(futures):
+                    address_index, addr = futures[future]
+                    try:
+                        record_result(address_index, addr, future.result())
+                    except Exception as e:
+                        logging.error(f"エラー (クエリ: {addr} {base_query}): {e}", exc_info=True)
+                        print(f"[{completed}/{total}] {addr} ERROR ({e})")
+                        failed_address_indexes.add(address_index)
+                        write_progress('partial', type(e).__name__)
+
     # APIが全件失敗した場合、ヘッダーだけのCSVを正常成果物として保存しない。
     # 200応答で検索結果0件だった場合は successful_requests_agg > 0 なので正常扱いになる。
-    if total_requests_agg > 0 and successful_requests_agg == 0:
+    if (total_requests_agg > 0 and successful_requests_agg == 0) or (
+        failed_address_indexes and not completed_address_indexes
+    ):
         message = (
             "Bright Data APIの全リクエストが失敗しました。"
             "APIトークン、ゾーン名、契約状態を確認してください。"
         )
+        write_progress('failed', 'all_api_requests_failed')
         logging.error(message)
         raise RuntimeError(message)
+
+    incomplete_indexes = set(range(total)) - completed_address_indexes
+    if stopped_for_soft_limit or failed_address_indexes or incomplete_indexes:
+        error_type = 'soft_deadline' if stopped_for_soft_limit else 'address_failure'
+        write_progress('partial', error_type)
+        print(
+            f"SERP施設取得は部分完了です（完了住所 {completed}/{total}）。"
+            "同じ条件で再実行すると未処理住所から再開します。"
+        )
+    else:
+        write_progress('success')
 
     #
     # facility_file: write new facilities

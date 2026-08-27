@@ -1,6 +1,6 @@
 # ドキュメント案内
 
-更新日: 2026-08-25
+更新日: 2026-08-27
 
 ## 現在のドキュメント
 
@@ -11,6 +11,7 @@
 - [`issueオーケストレーション.md`](issueオーケストレーション.md): IssueからActionsへ分岐する現在の仕様
 - [`n8n_google_reviews_ops.md`](n8n_google_reviews_ops.md): n8nとGoogleログイン状態を使うローカル関連度取得
 - [`GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md`](GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md): Public／Private、Actions分数、約2日半の実績
+- [`PROGRAM_AND_WORKFLOW_REFERENCE.md`](PROGRAM_AND_WORKFLOW_REFERENCE.md): 全Python・workflowの入力、出力、照合、並列、timeout、部分完了、再開の正本
 - [`SERP_API_REACTIVATION_GUIDE.md`](SERP_API_REACTIVATION_GUIDE.md): SERP API再開時の確認と段階テスト
 - [`../README.md`](../README.md): システム概要と現在使用する処理
 

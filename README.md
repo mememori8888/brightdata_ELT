@@ -36,8 +36,9 @@ Google Places APIはオーナー返信を提供しません。返信が必要な
 - `docs/ADDRESS_CSV_GUIDE.md`: 住所CSV・検索キーワード・不正テンプレートの説明
 - `docs/n8n_google_reviews_ops.md`: n8nとGoogleログイン状態のローカル操作
 - `docs/GITHUB_ACTIONS_RUNTIME_AND_VISIBILITY.md`: Public／Privateと長時間処理の判断資料
+- `docs/PROGRAM_AND_WORKFLOW_REFERENCE.md`: 全プログラム・全workflowの入力、出力、照合、分割、timeout、復旧仕様の正本
 
-Bright Dataへ同時に渡す処理数は全経路で最大20です。Dataset逐次版のWebAppは「Bright Data同時処理数」を20件、GitHub Actionsの並列ジョブ数を1に固定して表示を簡素化しています。Issue・workflow・Pythonでは引き続き`api_batch_size × max_parallel_jobs <= 20`を検証します。
+Bright Dataへ同時に渡す処理数は全経路で最大20です。Dataset逐次版は`rows_per_batch`を最大500、`api_batch_size`を20、GitHub Actionsの並列ジョブ数を1に固定し、matrixを最大256ジョブに制限します。WebApp・Issue・workflow・CLI・Pythonで同じ制約を検証します。
 
 ## ローカルテスト
 
