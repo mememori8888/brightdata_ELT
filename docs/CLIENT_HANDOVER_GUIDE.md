@@ -69,7 +69,7 @@ git remote -v
 | `.github/workflows/*.yml` | `repository: jmh8128494-cloud/googlemap` |
 | `issue-ops-universal.yml`の完了リンク | `https://github.com/jmh8128494-cloud/googlemap` |
 | PythonのGitHub ownerフォールバック | `jmh8128494-cloud` |
-| WebAppキャッシュ識別子 | `app.js?v=20260827-long-run-safety` |
+| WebAppキャッシュ識別子 | `app.js?v=20260830-fixed-place-increments` |
 
 移管前の固定値が現行ファイルに残っていないことを確認するコマンド:
 

@@ -83,14 +83,14 @@ Bright Dataへ同時に渡す処理数は最大20です。Dataset逐次版のWeb
 |---|---|
 | 施設出力CSV | `client_acceptance_places_facility_YYYYMMDD.csv` |
 | レビュー出力CSV | `client_acceptance_places_review_YYYYMMDD.csv` |
-| 増分施設出力CSV | `client_acceptance_places_facility_increment_YYYYMMDD.csv` |
-| 増分レビュー出力CSV | `client_acceptance_places_review_increment_YYYYMMDD.csv` |
+| 増分施設出力CSV | 設定プリセットの固定名（WebAppでの指定なし） |
+| 増分レビュー出力CSV | 設定プリセットの固定名（WebAppでの指定なし） |
 
 ### 合格条件
 
 - Actionsの`run-facility-places`が成功する
 - Issueへ「ジョブ完了」がコメントされ、自動クローズされる
-- `googlemap/results/`に指定した4ファイルがある
+- `googlemap/results/`に指定した主出力2ファイルと、プリセット固定名の増分2ファイルがある
 - 新規施設CSVの施設IDが101から、新規レビューCSVのレビューIDが1から始まる
 - レビューCSVと増分レビューCSVのヘッダーが「レビューCSVの共通15列」と一致する
 - APIから対象データが返った場合はデータ行が1件以上ある

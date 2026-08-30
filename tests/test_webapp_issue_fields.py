@@ -16,6 +16,15 @@ class WebAppIssueFieldTests(unittest.TestCase):
         self.assertNotIn("places_included_type", self.app)
         self.assertNotIn("data.included_type", self.app)
 
+    def test_places_increment_outputs_are_fixed_by_profile(self):
+        self.assertNotIn('id="places_update_facility_file"', self.html)
+        self.assertNotIn('id="places_update_review_file"', self.html)
+        self.assertNotIn("populateDropdown('places_update_facility_file'", self.app)
+        self.assertNotIn("populateDropdown('places_update_review_file'", self.app)
+        self.assertIn("data.update_facility_file = placesProfile?.update_facility_file || '';", self.app)
+        self.assertIn("data.update_review_file = placesProfile?.update_review_file || '';", self.app)
+        self.assertIn("増分出力名はプリセット固定です", self.app)
+
     def test_generated_issue_does_not_request_admin_approval(self):
         self.assertNotIn("**管理者へ**", self.app)
         self.assertNotIn("入力して承認してください", self.app)

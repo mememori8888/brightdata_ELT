@@ -323,7 +323,7 @@
 
                     <div class="form-section">
                         <h3>📝 入出力ファイル</h3>
-                        <p class="section-description">既存の主出力はGIDで重複を除いて新規分を追加します。新規作成では施設IDは101、レビューIDは1から採番します。増分出力には今回の新規分だけを保存します。</p>
+                        <p class="section-description">既存の主出力はGIDで重複を除いて新規分を追加します。新規作成では施設IDは101、レビューIDは1から採番します。増分出力には今回の新規分だけをプリセット固定名で保存します。</p>
 
                         <div class="form-group">
                             <label for="places_address_csv">入力住所CSV</label>
@@ -353,25 +353,6 @@
                             <small>results/ は自動補完されます</small>
                         </div>
 
-                        <div class="form-group">
-                            <label for="places_update_facility_file">増分施設出力CSV</label>
-                            <select id="places_update_facility_file"><option value="">（設定ファイルのデフォルトを使用）</option></select>
-                        </div>
-                        <div class="form-group" id="places_update_facility_file_new_container" style="display: none;">
-                            <label for="places_update_facility_file_new">新しい増分施設ファイル名</label>
-                            <input type="text" id="places_update_facility_file_new" placeholder="例: places_facilities_increment_test.csv">
-                            <small>results/ は自動補完されます</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="places_update_review_file">増分レビュー出力CSV</label>
-                            <select id="places_update_review_file"><option value="">（設定ファイルのデフォルトを使用）</option></select>
-                        </div>
-                        <div class="form-group" id="places_update_review_file_new_container" style="display: none;">
-                            <label for="places_update_review_file_new">新しい増分レビューファイル名</label>
-                            <input type="text" id="places_update_review_file_new" placeholder="例: places_reviews_increment_test.csv">
-                            <small>results/ は自動補完されます</small>
-                        </div>
                     </div>
 
                 </div>
@@ -408,6 +389,6 @@
     </div>
 
     <!-- フォーム変更時に古いJavaScriptがブラウザに残らないようバージョンを更新する -->
-    <script src="app.js?v=20260827-long-run-safety"></script>
+    <script src="app.js?v=20260830-fixed-place-increments"></script>
 </body>
 </html>

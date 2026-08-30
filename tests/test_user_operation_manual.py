@@ -16,6 +16,7 @@ class UserOperationManualTests(unittest.TestCase):
         self.assertIn("新規レビューCSV: `レビューID`を`1`から", manual)
         self.assertIn("新規施設CSV: `施設ID`を`101`から", manual)
         self.assertIn("同じ出力CSVへ複数Actionsを同時実行しない", manual)
+        self.assertIn("増分施設・増分レビューファイル名は設定プリセットごとに固定", manual)
 
     def test_manual_is_linked_from_docs_root_readme_and_webapp(self):
         docs_readme = (REPOSITORY_ROOT / "docs/README.md").read_text(encoding="utf-8")

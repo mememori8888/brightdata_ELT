@@ -1,6 +1,12 @@
 # ドキュメント案内
 
-更新日: 2026-08-27
+更新日: 2026-08-30
+
+## WebApp
+
+- [WebAppを開く](https://mememori8888.github.io/brightdata_ELT/webapp/)
+
+移管後は[`https://jmh8128494-cloud.github.io/brightdata_ELT/webapp/`](https://jmh8128494-cloud.github.io/brightdata_ELT/webapp/)を使用します。
 
 ## 現在のドキュメント
 

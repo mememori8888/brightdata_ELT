@@ -560,8 +560,6 @@ function applyPlacesProfile(profileId) {
 
     setPlacesOutputFile('places_facility_file', 'places_facility_file_new', profile.facility_file);
     setPlacesOutputFile('places_review_file', 'places_review_file_new', profile.review_file);
-    setPlacesOutputFile('places_update_facility_file', 'places_update_facility_file_new', profile.update_facility_file);
-    setPlacesOutputFile('places_update_review_file', 'places_update_review_file_new', profile.update_review_file);
 }
 
 function populatePlacesProfiles(profiles) {
@@ -679,8 +677,6 @@ async function loadFileOptions() {
         populateDropdown('places_address_csv', addressFiles, 'settings', false);
         populateDropdown('places_facility_file', facilityFiles, 'results', true);
         populateDropdown('places_review_file', reviewFiles, 'results', true);
-        populateDropdown('places_update_facility_file', addDataFiles, 'results', true);
-        populateDropdown('places_update_review_file', addReviewFiles, 'results', true);
         populateDropdown('places_exclude_gids_file', excludeFiles, 'settings', false);
         populatePlacesProfiles(placesProfiles);
         
@@ -1033,13 +1029,15 @@ function getFormData() {
         case 'facility_places':
             data.config_file = document.getElementById('places_config_file')?.value || 'settings/settings.json';
             data.profile_id = document.getElementById('places_profile')?.value || '';
+            const placesProfile = fileCache.placesProfiles.find(profile => profile.id === data.profile_id);
             data.search_query = document.getElementById('places_query')?.value || '';
             data.exclude_gids_file = document.getElementById('places_exclude_gids_file')?.value || '';
             data.address_csv = document.getElementById('places_address_csv')?.value || '';
             data.facility_file = resolveSelectedFile('places_facility_file', 'places_facility_file_new', 'results');
             data.review_file = resolveSelectedFile('places_review_file', 'places_review_file_new', 'results');
-            data.update_facility_file = resolveSelectedFile('places_update_facility_file', 'places_update_facility_file_new', 'results');
-            data.update_review_file = resolveSelectedFile('places_update_review_file', 'places_update_review_file_new', 'results');
+            // 増分出力は利用者に選ばせず、設定プリセットの固定名を使用する。
+            data.update_facility_file = placesProfile?.update_facility_file || '';
+            data.update_review_file = placesProfile?.update_review_file || '';
             break;
             
     }
@@ -1163,9 +1161,9 @@ function generateIssueBody(data) {
             if (data.address_csv) body += `- **入力住所CSV**: \`${data.address_csv}\`\n`;
             if (data.facility_file) body += `- **施設出力CSV**: \`${data.facility_file}\`\n`;
             if (data.review_file) body += `- **レビュー出力CSV**: \`${data.review_file}\`\n`;
-            if (data.update_facility_file) body += `- **増分施設出力CSV**: \`${data.update_facility_file}\`\n`;
-            if (data.update_review_file) body += `- **増分レビュー出力CSV**: \`${data.update_review_file}\`\n`;
-            body += `選択したファイルは設定ファイル内の値を上書きします\n`;
+            if (data.update_facility_file) body += `- **増分施設出力CSV（プリセット固定）**: \`${data.update_facility_file}\`\n`;
+            if (data.update_review_file) body += `- **増分レビュー出力CSV（プリセット固定）**: \`${data.update_review_file}\`\n`;
+            body += `選択した主出力ファイルは設定ファイル内の値を上書きします。増分出力名はプリセット固定です。\n`;
             break;
             
     }
@@ -1299,9 +1297,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     [
         ['places_facility_file', 'places_facility_file_new'],
-        ['places_review_file', 'places_review_file_new'],
-        ['places_update_facility_file', 'places_update_facility_file_new'],
-        ['places_update_review_file', 'places_update_review_file_new']
+        ['places_review_file', 'places_review_file_new']
     ].forEach(([selectId, inputId]) => {
         document.getElementById(selectId)?.addEventListener('change', function() {
             toggleNewFileInput(selectId, inputId);
