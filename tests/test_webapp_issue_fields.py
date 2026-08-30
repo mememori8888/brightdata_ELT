@@ -16,6 +16,10 @@ class WebAppIssueFieldTests(unittest.TestCase):
         self.assertNotIn("places_included_type", self.app)
         self.assertNotIn("data.included_type", self.app)
 
+    def test_webapp_title_uses_googlemap_place_api(self):
+        self.assertIn("<title>Googlemap place api Job Manager</title>", self.html)
+        self.assertIn("<h1>Googlemap place api Job Manager</h1>", self.html)
+
     def test_places_increment_outputs_are_fixed_by_profile(self):
         self.assertNotIn('id="places_update_facility_file"', self.html)
         self.assertNotIn('id="places_update_review_file"', self.html)

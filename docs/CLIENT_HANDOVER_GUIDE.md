@@ -1,6 +1,6 @@
 # クライアント向け運用開始・移管ガイド
 
-更新日: 2026-08-27
+更新日: 2026-08-31
 
 この文書は、所有権移転後の新オーナーを`jmh8128494-cloud`として記載しています。
 
@@ -100,6 +100,8 @@ rg -n "$oldOwner|GITHUB_REPO = '$oldCodeRepo'|repository: $oldOwner" `
 | `GEMINI_API_KEY` | AI要約 | 現在無効、不要 |
 
 移管前に同名Secretがダミー値で用意されている場合も、そのままでは実行できません。移管完了後、新オーナーが各Secretを開いて`Update secret`から実値へ置き換えます。GitHubでは保存済みのSecret値を再表示できません。
+
+APIサービスの申込、Google Maps PlatformのStarter／Essentials／Pro、現在のPlaces呼び出しがサブスク対象外になる可能性、Bright Dataとの料金比較は[`API_SERVICE_COST_GUIDE.md`](API_SERVICE_COST_GUIDE.md)を確認してください。Bright Dataの申込入口は[こちら](https://get.brightdata.com/g0nvj7i1g1ho)、Google Maps Platformのサブスクリプションページは[こちら](https://mapsplatform.google.com/pricing/?utm_source=gnp&utm_medium=email&utm_campaign=FY25-Q3-global-Maps-website-of-GNP-New-Customer-Onboarding-Journey&utm_content=pricing_variant2#subscribe-to-save)です。
 
 ### `PRIVATE_REPO_PAT`の発行手順
 
@@ -247,7 +249,7 @@ WebAppはAPIをブラウザ内で直接実行したり、CSVの中身を編集�
 
 SERP依存の3処理は将来の再開に備えてWebAppとActionsへ残しています。SERPゾーンの利用可否をBright Data側で確認できるまでは、初回受入テストでは選択しません。
 
-Google Places APIはレビューのオーナー返信を返しません。返信が必要な場合はDataset逐次版を使用します。
+Google Places APIが返すレビューは1施設につき最大5件で、過去○日の期間指定や全件取得はできず、オーナー返信も返しません。Bright Data Dataset逐次版は`days_back`で過去何日分を取得するか指定でき、5件を超えるレビューとオーナー返信の取得に使用します。ただし、Google Maps側の表示状態やDataset応答により、指定期間内の全レビュー取得を保証するものではありません。
 
 Bright Dataの同時処理数は最大20です。Dataset逐次版は`rows_per_batch`を最大500、`api_batch_size`を20、GitHub Actionsの並列ジョブ数を1、matrixを最大256に制限します。WebApp・Issue・workflow・CLI・Pythonで同じ設定を検証し、積が20を超える設定も拒否します。SERP APIの並列数（レビュー10、施設10、関連度3）は別設定で、既存の安全な既定値を維持しつつ上限20を適用します。
 
